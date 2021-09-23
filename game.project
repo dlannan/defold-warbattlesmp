@@ -1,0 +1,23 @@
+[project]
+title = War battles MP
+version = 0.1
+
+[bootstrap]
+main_collection = /main/main.collectionc
+
+[input]
+game_binding = /input/game.input_bindingc
+
+[display]
+width = 720
+height = 720
+
+[physics]
+scale = 0.02
+
+[script]
+shared_state = 1
+
+[tilemap]
+max_tile_count = 10000
+

@@ -1,0 +1,73 @@
+local fire_lookup = {}
+
+fire_lookup[0] 	= 1.5708
+
+fire_lookup[10] 	= 6.28319
+fire_lookup[1] 		= 1.5708
+fire_lookup[-10] 	= 3.14159
+fire_lookup[-1] 	= 4.71239
+
+fire_lookup[9] 		= 5.49779
+fire_lookup[11] 	= 0.785398
+fire_lookup[-9] 	= 2.35619
+fire_lookup[-11]	 = 3.92699
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+
+	self.moving = false
+	self.firing = false                     -- [1]
+
+	self.input = vmath.vector3()
+	self.dir = vmath.vector3(0, 1, 0)
+	self.speed = 50
+	self.strdir = 0
+end
+
+function final(self)                                -- [7]
+	msg.post(".", "release_input_focus")            -- [8]
+end
+
+function update(self, dt)
+	if self.moving then
+		self.strdir = self.input.x * 10 +  self.input.y
+		local pos = go.get_position()
+		pos = pos + self.dir * self.speed * dt
+		go.set_position(pos)
+	end
+
+	if self.firing then
+		local angle = fire_lookup[self.strdir]
+		local rot = vmath.quat_rotation_z(angle)            -- [2]
+		local props = { dir = self.dir }                    -- [3]
+		factory.create("#rocketfactory", nil, rot, props)   -- [4]
+	end
+
+	self.input.x = 0
+	self.input.y = 0
+
+	self.moving = false
+	self.firing = false                     -- [2]
+end
+
+function on_input(self, action_id, action)          -- [14]
+
+	if action_id == hash("fire") and action.pressed then
+		self.firing = true
+	end
+	
+	if action_id == hash("up") then
+		self.input.y = 1                            -- [15]
+	elseif action_id == hash("down") then
+		self.input.y = -1
+	elseif action_id == hash("left") then
+		self.input.x = -1
+	elseif action_id == hash("right") then
+		self.input.x = 1
+	end 
+	
+	if vmath.length(self.input) > 0 then
+		self.moving = true                          -- [16]
+		self.dir = vmath.normalize(self.input)      -- [17]
+	end
+end
