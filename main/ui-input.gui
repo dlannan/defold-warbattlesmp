@@ -1,8 +1,4 @@
-script: "/main/ui.gui_script"
-fonts {
-  name: "text"
-  font: "/main/text.font"
-}
+script: ""
 fonts {
   name: "textsmall"
   font: "/main/textsmall.font"
@@ -15,8 +11,8 @@ background_color {
 }
 nodes {
   position {
-    x: 14.0
-    y: 697.0
+    x: 447.0
+    y: 473.0
     z: 0.0
     w: 1.0
   }
@@ -27,14 +23,14 @@ nodes {
     w: 1.0
   }
   scale {
-    x: 0.5
-    y: 0.5
+    x: 1.0
+    y: 1.0
     z: 1.0
     w: 1.0
   }
   size {
-    x: 200.0
-    y: 100.0
+    x: 150.0
+    y: 50.0
     z: 0.0
     w: 1.0
   }
@@ -46,12 +42,12 @@ nodes {
   }
   type: TYPE_TEXT
   blend_mode: BLEND_MODE_ALPHA
-  text: "SCORE: 0"
-  font: "text"
-  id: "score"
+  text: "MyGame"
+  font: "textsmall"
+  id: "textinput"
   xanchor: XANCHOR_NONE
   yanchor: YANCHOR_NONE
-  pivot: PIVOT_W
+  pivot: PIVOT_CENTER
   outline {
     x: 1.0
     y: 1.0

@@ -1,12 +1,12 @@
 go.property("dir", vmath.vector3())                 -- [1]
 
 function init(self)
-	self.speed = 200                                -- [2]
+	self.speed = 400                                -- [2]
 	self.life = 1  
 end
 
 local function explode(self)                                -- [1]
-	self.life = 1000
+	self.life = 1600
 	go.set_rotation(vmath.quat())
 	self.speed = 0
 	msg.post("#sprite", "play_animation", { id = hash("explosion") })       

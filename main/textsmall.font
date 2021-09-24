@@ -1,6 +1,6 @@
 font: "/assets/fonts/04font.ttf"
 material: "/builtins/fonts/font.material"
-size: 30
+size: 15
 antialias: 1
 alpha: 1.0
 outline_alpha: 0.0

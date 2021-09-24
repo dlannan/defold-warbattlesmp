@@ -18,3 +18,7 @@ key_trigger {
   input: KEY_SPACE
   action: "fire"
 }
+text_trigger {
+  input: TEXT
+  action: "type"
+}
