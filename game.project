@@ -1,6 +1,7 @@
 [project]
 title = War battles MP
 version = 0.1
+dependencies#0 = https://github.com/britzl/gooey/archive/master.zip
 
 [bootstrap]
 main_collection = /main/main.collectionc
