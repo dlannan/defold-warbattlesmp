@@ -1,0 +1,41 @@
+function init(self)
+	self.paused = false
+	msg.post(".", "acquire_input_focus")
+end
+
+function final(self)
+end
+
+function update(self, dt)
+end
+
+local function togglegui(self)
+	self.paused = not self.paused
+	if(self.paused) then 
+		msg.post("gui-bg", "disable")	
+		msg.post("gui-lobby", "disable")	
+		msg.post("gui-players", "disable")
+	else
+		msg.post("gui-bg", "enable")	
+		msg.post("gui-lobby", "enable")	
+	end
+end
+
+function on_message(self, message_id, message, sender)
+
+	if( message_id== hash("togglegui") ) then 
+		togglegui(self)
+	end
+	
+end
+
+function on_input(self, action_id, action)
+
+	if action_id == hash("escape") and action.pressed then
+		pprint("Escaped pressed")
+		togglegui(self)
+	end
+end
+
+function on_reload(self)
+end

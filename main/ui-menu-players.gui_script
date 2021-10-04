@@ -43,9 +43,7 @@ function on_input(self, action_id, action)
 				print("Button was long pressed")
 			else
 				print("Button was pressed")
-				msg.post("gui-bg", "disable")	
-				msg.post("gui-lobby", "disable")	
-				msg.post("gui-players", "disable")	
+				msg.post("gui-runtime", "togglegui")	
 			end
 		end, update_startbutton)
 		

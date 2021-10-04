@@ -18,9 +18,9 @@ key_trigger {
   input: KEY_SPACE
   action: "fire"
 }
-text_trigger {
-  input: TEXT
-  action: "type"
+key_trigger {
+  input: KEY_ESC
+  action: "escape"
 }
 mouse_trigger {
   input: MOUSE_BUTTON_1
@@ -37,6 +37,10 @@ mouse_trigger {
 touch_trigger {
   input: TOUCH_MULTI
   action: "multitouch"
+}
+text_trigger {
+  input: TEXT
+  action: "type"
 }
 text_trigger {
   input: TEXT
