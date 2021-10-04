@@ -1,6 +1,6 @@
 tile_set: "/main/map.tilesource"
 layers {
-  id: "layer"
+  id: "gnd"
   z: 0.0
   is_visible: 1
   cell {
@@ -19158,7 +19158,7 @@ layers {
 }
 layers {
   id: "trees1"
-  z: 0.1
+  z: 0.5
   is_visible: 1
   cell {
     x: 30
@@ -19527,7 +19527,7 @@ layers {
 }
 layers {
   id: "trees2"
-  z: 1.0
+  z: 0.6
   is_visible: 1
   cell {
     x: 30
