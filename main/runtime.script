@@ -1,33 +1,117 @@
+
+local swtest = require("main.swampy-warbattlesmp")
+local json 	 = require("swampy.utils.json")
+
+
+-- ---------------------------------------------------------------------------
+
+local function logtext(self, str)
+
+	pprint(str)
+	-- msg.post("/gui#log", "logtext", { text = str } )
+end 
+
+local function startgame(self, data)
+
+	logtext(self, data["status"])
+	msg.post("/gui-lobby", "gamestart")
+	pprint(self.game)
+	msg.post("/gui-players", "gamestart", { people = self.game.people })
+end 
+
+local function joingame(self) 
+
+	-- First connect 
+	swtest.connect(self, function(data) 
+		logtext(self, "Connection: "..tostring(data))
+
+		-- find the game name 
+		swtest.findgame( self, self.gamename, function(data) 
+			logtext(self, data["status"])
+			-- Game not found, then create one and join!
+			if(data["status"] ~= "OK") then 
+
+				swtest.creategame( self, self.gamename, function(data) 
+					if(data.status and data.status == "OK") then 
+						self.game = json.decode(data.result)
+					end
+					startgame(self, data)
+				end)
+			-- Found the game!
+			else
+				swtest.joingame( self, self.gamename, function(data) 
+					if(data.status and data.status == "OK") then 
+						self.game = json.decode(data.result)
+					end
+					startgame(self, data)
+				end)
+			end 
+		end) 
+	end)
+end 
+
+-- ---------------------------------------------------------------------------
+
 function init(self)
 	self.paused = false
 	msg.post(".", "acquire_input_focus")
+
+	swtest.setup(self, "WarBattlesMP", "player1")
+	swtest.login(self, function(data) 
+		logtext(self, "Login OK.")
+	end)
+
+	-- Polling is used to sync game state from server
+	self.poller = timer.delay(1, true, function()
+
+		if(self.game) then 
+			logtext(self, "Polling gameX...")
+			swtest.pollgame( self )
+		end
+	end)
 end
+
+-- ---------------------------------------------------------------------------
 
 function final(self)
 end
 
+-- ---------------------------------------------------------------------------
+
 function update(self, dt)
 end
+
+-- ---------------------------------------------------------------------------
 
 local function togglegui(self)
 	self.paused = not self.paused
 	if(self.paused) then 
-		msg.post("gui-bg", "disable")	
-		msg.post("gui-lobby", "disable")	
-		msg.post("gui-players", "disable")
+		msg.post("/gui-bg", "disable")	
+		msg.post("/gui-lobby", "disable")	
+		msg.post("/gui-players", "disable")
 	else
-		msg.post("gui-bg", "enable")	
-		msg.post("gui-lobby", "enable")	
+		msg.post("/gui-bg", "enable")	
+		msg.post("/gui-lobby", "enable")	
 	end
 end
+
+-- ---------------------------------------------------------------------------
 
 function on_message(self, message_id, message, sender)
 
 	if( message_id== hash("togglegui") ) then 
 		togglegui(self)
 	end
-	
+	-- Joining can mean either joining a current game or creating and joining a new one
+	if( message_id== hash("joingame") ) then 
+		self.gamename = message.gamename
+		if(self.gamename and string.len(self.gamename)) then 
+			joingame(self)
+		end 
+	end
 end
+
+-- ---------------------------------------------------------------------------
 
 function on_input(self, action_id, action)
 
@@ -37,5 +121,9 @@ function on_input(self, action_id, action)
 	end
 end
 
+-- ---------------------------------------------------------------------------
+
 function on_reload(self)
 end
+
+-- ---------------------------------------------------------------------------

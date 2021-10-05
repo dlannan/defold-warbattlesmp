@@ -1,6 +1,8 @@
 local gooey = require "gooey.gooey"
 local utils = require "gooey.themes.utils"
 
+local DEFAULT_GAME_NAME 	= "MYGAME"
+
 local COLOR_LIGHTGREY = vmath.vector4(0.8, 0.8, 0.8, 1)
 local COLOR_WHITE = vmath.vector4(1)
 local COLOR_BLACK = vmath.vector4(0,0,0,1)
@@ -25,31 +27,51 @@ local function update_input(input)
 end
 
 function init(self)
+
 	gooey.acquire_input()
+	self.gamename = DEFAULT_GAME_NAME
 
 	-- update_checkbox(gooey.checkbox("checkbox").set_checked(true))
 	-- update_radiobutton(gooey.radio("radio2").set_selected(true))
 	-- gooey.input("input_text", gui.KEYBOARD_TYPE_DEFAULT, nil, nil, { empty_text = "EMPTY, MAX 8 CHARS"})
-	gooey.input("input_alphanumeric", gui.KEYBOARD_TYPE_DEFAULT, nil, nil, { empty_text = "MYGAME" })
+	local inp = gooey.input("input_alphanumeric", gui.KEYBOARD_TYPE_DEFAULT, nil, nil, { empty_text = DEFAULT_GAME_NAME })
+	inp.current_text = self.gamename
 
 	msg.post("gui-players", "disable")
 end
 
 function on_input(self, action_id, action)
+	
 	local group = gooey.group("group1", function()
+
+		--gooey.input("input_text", gui.KEYBOARD_TYPE_DEFAULT, action_id, action, { empty_text = "EMPTY, MAX 8 CHARS", max_length = 8 }, update_input)
+		local inp = gooey.input("input_alphanumeric", gui.KEYBOARD_TYPE_DEFAULT, 
+			action_id, action, { 
+				empty_text = DEFAULT_GAME_NAME, 
+				allowed_characters = "[%a%d%s]", 
+				use_marked_text = false
+			}, update_input )
+		
+		self.gamename = inp.text
+		if(string.len(self.gamename) < 1) then self.gamename = DEFAULT_GAME_NAME end 
 
 		gooey.button("button", action_id,action, function(button)
 			if button.long_pressed then
 				print("Button was long pressed")
 			else
-				print("Button was pressed")
-				msg.post("gui-players", "enable")
-				msg.post("gui-lobby", "disable")	
+				pprint(inp.text)
+				msg.post("/gui-runtime", "joingame", {gamename = self.gamename})
 			end
 		end, update_button)
 	
-		--gooey.input("input_text", gui.KEYBOARD_TYPE_DEFAULT, action_id, action, { empty_text = "EMPTY, MAX 8 CHARS", max_length = 8 }, update_input)
-		gooey.input("input_alphanumeric", gui.KEYBOARD_TYPE_DEFAULT, action_id, action, { empty_text = "MYGAME", allowed_characters = "[%a%d%s]", use_marked_text = false}, update_input)
 	end)
 	return group.consumed
 end
+
+function on_message(self, message_id, message, sender)
+
+	if(message_id == hash("gamestart")) then 
+		msg.post("/gui-players", "enable")
+		msg.post("/gui-lobby", "disable")	
+	end 
+end 

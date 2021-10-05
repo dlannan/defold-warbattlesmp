@@ -33,6 +33,12 @@ local USER_EVENT 	= {
 	REQUEST_START 	= 20,
 	REQUEST_WAITING = 30,
 	REQUEST_ROUND 	= 40,
+
+	-- Some War Battle Specific Events 
+	PLAYER_SHOOT	= 60,		-- Player lauched a rocket 
+	PLAYER_HIT		= 70,		-- Client thinks rocket hit something - server check
+	PLAYER_MOVE 	= 80,		-- Movement has occurred update server
+	
 }
 
 -- ---------------------------------------------------------------------------
@@ -76,8 +82,17 @@ local function check_connect(self)
 end
 
 -- ---------------------------------------------------------------------------
+
+local function genname(long)
+	long = long or 9
+	m,c = math.random,("").char 
+	name = ((" "):rep(long):gsub(".",function()return c(("aeiouy"):byte(m(1,6)))end):gsub(".-",function()return c(m(97,122))end))
+	return name
+end
+
+-- ---------------------------------------------------------------------------
 -- Setup server 
-local function setup_swampy(self, modulename)
+local function setup_swampy(self, modulename, uid)
 
 	swampy.setmodulename(modulename) 
 
@@ -92,9 +107,8 @@ local function setup_swampy(self, modulename)
 	self.login_attemps 	= 0
 	self.gamestate 		= 0
 
-
-	self.user_id		= "blahblah"
-	self.device_id		= 12345
+	self.user_id		= uid
+	self.device_id		= genname(16)
 
 	self.swp_client = swampy.create_client(config)
 	--pprint(self.swp_client)
