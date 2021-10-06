@@ -48,7 +48,7 @@ nodes {
   blend_mode: BLEND_MODE_ALPHA
   text: "GAME NAME:"
   font: "textsmall"
-  id: "text"
+  id: "label_gamename"
   xanchor: XANCHOR_NONE
   yanchor: YANCHOR_NONE
   pivot: PIVOT_CENTER

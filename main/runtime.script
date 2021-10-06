@@ -1,7 +1,7 @@
 
 local swtest = require("main.swampy-warbattlesmp")
 local json 	 = require("swampy.utils.json")
-
+local chance = require("lua.chance")
 
 -- ---------------------------------------------------------------------------
 
@@ -13,11 +13,13 @@ end
 
 local function startgame(self, data)
 
+	-- Apply a fake name to start
 	logtext(self, data["status"])
 	msg.post("/gui-lobby", "gamestart")
-	pprint(self.game)
-	msg.post("/gui-players", "gamestart", { people = self.game.people })
-end 
+	--pprint(self.game)
+	msg.post("/gui-players", "gamestart", { people = self.game.people, myname = self.player_name })
+	msg.post("/gui-players", "gamename", { gamename = self.game.gamename })
+end
 
 local function joingame(self) 
 
@@ -25,28 +27,32 @@ local function joingame(self)
 	swtest.connect(self, function(data) 
 		logtext(self, "Connection: "..tostring(data))
 
-		-- find the game name 
-		swtest.findgame( self, self.gamename, function(data) 
-			logtext(self, data["status"])
-			-- Game not found, then create one and join!
-			if(data["status"] ~= "OK") then 
+		self.player_name = chance:name()
+		swtest.updateaccount( self, function(data) 
+					
+			-- find the game name 
+			swtest.findgame( self, self.gamename, function(data) 
+				logtext(self, data["status"])
+				-- Game not found, then create one and join!
+				if(data["status"] ~= "OK") then 
 
-				swtest.creategame( self, self.gamename, function(data) 
-					if(data.status and data.status == "OK") then 
-						self.game = json.decode(data.result)
-					end
-					startgame(self, data)
-				end)
-			-- Found the game!
-			else
-				swtest.joingame( self, self.gamename, function(data) 
-					if(data.status and data.status == "OK") then 
-						self.game = json.decode(data.result)
-					end
-					startgame(self, data)
-				end)
-			end 
-		end) 
+					swtest.creategame( self, self.gamename, function(data) 
+						if(data.status and data.status == "OK") then 
+							self.game = json.decode(data.result)
+						end
+						startgame(self, data)
+					end)
+				-- Found the game!
+				else
+					swtest.joingame( self, self.gamename, function(data) 
+						if(data.status and data.status == "OK") then 
+							self.game = json.decode(data.result)
+						end
+						startgame(self, data)
+					end)
+				end 
+			end) 
+		end)
 	end)
 end 
 
@@ -55,6 +61,7 @@ end
 function init(self)
 	self.paused = false
 	msg.post(".", "acquire_input_focus")
+	chance:seed(os.time())
 
 	swtest.setup(self, "WarBattlesMP", "player1")
 	swtest.login(self, function(data) 
@@ -62,11 +69,13 @@ function init(self)
 	end)
 
 	-- Polling is used to sync game state from server
-	self.poller = timer.delay(1, true, function()
+	self.poller = timer.delay(0.2, true, function()
 
 		if(self.game) then 
 			logtext(self, "Polling gameX...")
-			swtest.pollgame( self )
+			swtest.updategame( self, function(data)
+				pprint(data)
+			end)
 		end
 	end)
 end
@@ -108,6 +117,14 @@ function on_message(self, message_id, message, sender)
 		if(self.gamename and string.len(self.gamename)) then 
 			joingame(self)
 		end 
+	end
+	if(message_id == hash("mainmenu") ) then 
+		msg.post("/gui-bg", "enable")	
+		msg.post("/gui-lobby", "enable")	
+		msg.post("/gui-players", "disable")
+		swtest.leavegame( self, self.gamename, function(data) 
+			self.game = nil
+		end)
 	end
 end
 
