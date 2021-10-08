@@ -170,9 +170,10 @@ function chance.isVowel(self, char)
 	return contains(vowels, char)
 end
 
-function chance.word(self)
+function chance.word(self, maxsyll)
+	maxsyll = maxsyll or 3
 	local word = ''
-	for i=1, math.random(1, 5) do
+	for i=1, math.random(1, maxsyll) do
 		word = word .. self:syllable()
 	end
 	return word

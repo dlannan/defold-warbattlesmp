@@ -35,10 +35,12 @@ local USER_EVENT 	= {
 	REQUEST_ROUND 	= 40,
 
 	-- Some War Battle Specific Events 
+	PLAYER_STATE 	= 50, 		-- Generic DO EVERYTHING state 
+
+	-- Smaller simple states (should use this TODO)
 	PLAYER_SHOOT	= 60,		-- Player lauched a rocket 
 	PLAYER_HIT		= 70,		-- Client thinks rocket hit something - server check
 	PLAYER_MOVE 	= 80,		-- Movement has occurred update server
-	
 }
 
 -- ---------------------------------------------------------------------------
@@ -218,6 +220,7 @@ local function updateaccount(self, callback)
 end 
 
 -- ---------------------------------------------------------------------------
+-- This is quite slow, only need a small portion of this. Example only.
 local function make_requestgamestate(client, game_name, device_id) 
 
 	-- User submission data must be in this format - will be checked
@@ -351,6 +354,22 @@ local function updategamestate(self, callback)
 	end, bodystr)
 end 
 
+
+-- ---------------------------------------------------------------------------
+
+local function sendplayerdata(self, pstate)
+
+	local ok, resp = check_connect(self) 
+	if(ok == nil) then callback(resp); return nil end 
+
+	local body = make_requestgamestate( self.swp_client, self.game_name, self.device_id )
+	body.state = pstate
+	body.event = USER_EVENT.PLAYER_STATE
+	local bodystr = json.encode(body)
+	swampy.game_update( self.swp_client, self.game_name, self.device_id, function() end, bodystr)
+end 
+
+
 -- ---------------------------------------------------------------------------
 
 local function waiting(self)
@@ -478,6 +497,8 @@ return {
 	updateready		= updateready,
 	startgame		= startgame,
 	exitgame		= exitgame,
+
+	sendplayerdata	= sendplayerdata,
 
 	updateround 	= updateround,
 

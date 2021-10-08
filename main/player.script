@@ -16,17 +16,23 @@ fire_lookup[-11]	= 3.92699
 
 -- -----------------------------------------------------------------------------
 
+go.property("pcolor", vmath.vector4(1,1,1,1))
+
+-- -----------------------------------------------------------------------------
+
 function init(self)
 	msg.post(".", "acquire_input_focus")
 
 	self.moving = false
 	self.firing = false                     -- [1]
 
-	self.input = vmath.vector3()
-	self.dir = vmath.vector3(0, 1, 0)
-	self.speed = 100
+	self.input 	= vmath.vector3()
+	self.dir 	= vmath.vector3(0, 1, 0)
+	self.speed 	= 100
 	self.strdir = 0
 	self.lastdt = 0
+	self.lastpos = vmath.vector3()
+	self.frame 	= 0
 end
 
 -- -----------------------------------------------------------------------------
@@ -44,6 +50,7 @@ function update(self, dt)
 		self.strdir = self.input.x * 10 +  self.input.y
 		local pos = go.get_position()
 		pos = pos + self.dir * self.speed * dt
+		self.lastpos = pos
 		go.set_position(pos)
 	end
 
@@ -54,31 +61,45 @@ function update(self, dt)
 		factory.create("#rocketfactory", nil, rot, props)   -- [4]
 	end
 
+-- 	if(self.frame % 200 == 0) then 
+-- 		-- Tell runtime - which tells server, we have moved
+-- 
+-- 		msg.post("gui-runtime", "move_player", {
+-- 			x = self.lastpos.x,
+-- 			y = self.lastpos.y, 
+-- 			dir = self.dir, 
+-- 			speed = self.speed,
+-- 		})
+-- 	end
+
 	self.input.x = 0
 	self.input.y = 0
 
 	self.moving = false
 	self.firing = false                     -- [2]
+	self.frame 	= self.frame + 1
 end
 
 -- -----------------------------------------------------------------------------
 
 function on_input(self, action_id, action)          -- [14]
 
-	if action_id == hash("fire") and action.pressed then
-		self.firing = true
-	end
-	
-	if action_id == hash("up") then
-		self.input.y = 1                            -- [15]
-	elseif action_id == hash("down") then
-		self.input.y = -1
-	elseif action_id == hash("left") then
-		self.input.x = -1
-	elseif action_id == hash("right") then
-		self.input.x = 1
+	if(self.other == nil) then 
+		if action_id == hash("fire") and action.pressed then
+			self.firing = true
+		end
+		
+		if action_id == hash("up") then
+			self.input.y = 1                            -- [15]
+		elseif action_id == hash("down") then
+			self.input.y = -1
+		elseif action_id == hash("left") then
+			self.input.x = -1
+		elseif action_id == hash("right") then
+			self.input.x = 1
+		end 
 	end 
-	
+		
 	if vmath.length(self.input) > 0 then
 		self.moving = true                          -- [16]
 		self.dir = vmath.normalize(self.input)      -- [17]
@@ -97,6 +118,18 @@ function on_message(self, message_id, message, sender)
 			go.set_position(pos)
 		end
 	end
+	
+	if message_id == hash("player_details") then 
+
+		label.set_text("#playername", message.name)
+		go.set("#playername", "color", message.color)
+		-- go.set("#sprite", "tint", message.color)
+
+		-- Start update timers for players
+		if(message.other) then 
+			self.other = true
+		end
+	end 
 end
 
 -- -----------------------------------------------------------------------------

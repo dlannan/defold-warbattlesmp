@@ -170,9 +170,7 @@ nodes {
   }
   type: TYPE_TEXT
   blend_mode: BLEND_MODE_ALPHA
-  text: "Fred\n"
-  "Anne\n"
-  "Trev"
+  text: "players"
   font: "text"
   id: "players"
   xanchor: XANCHOR_NONE

@@ -2,7 +2,29 @@
 local swtest = require("main.swampy-warbattlesmp")
 local json 	 = require("swampy.utils.json")
 local chance = require("lua.chance")
+local utils  = require("lua.utils")
 
+-- Dodgy fixed point to start with
+local START_POS 	= vmath.vector3(100, 100, 1)
+
+local COLOR_WHITE 	= vmath.vector4(1, 1, 1, 1)
+
+-- ---------------------------------------------------------------------------
+
+local function colorgen()
+
+	local deg = math.rad(120) -- used for stepping rgb
+	local rdeg = math.floor(math.random(1, 360) / 16) * 16
+	local d1 = math.rad(rdeg)
+
+	local col = vmath.vector4()
+	col.x = (math.sin(d1) + 1.0) * 0.5
+	col.y = (math.sin(d1 + deg) + 1.0) * 0.5
+	col.z = (math.sin(d1 + deg + deg) + 1.0) * 0.5
+	col.w = 1.0
+	return col
+end 
+	
 -- ---------------------------------------------------------------------------
 
 local function logtext(self, str)
@@ -10,6 +32,8 @@ local function logtext(self, str)
 	pprint(str)
 	-- msg.post("/gui#log", "logtext", { text = str } )
 end 
+
+-- ---------------------------------------------------------------------------
 
 local function startgame(self, data)
 
@@ -21,15 +45,28 @@ local function startgame(self, data)
 	msg.post("/gui-players", "gamename", { gamename = self.game.gamename })
 end
 
+-- ---------------------------------------------------------------------------
+
+local function setname(self, name, callback)
+
+	self.player_color	= colorgen()
+	self.player_name 	= name
+	self.player_uid 	= self.user_id
+	swtest.updateaccount( self, function(data) 
+		pprint(data)
+		callback(data)
+	end)
+end
+
+-- ---------------------------------------------------------------------------
+
 local function joingame(self) 
 
 	-- First connect 
 	swtest.connect(self, function(data) 
 		logtext(self, "Connection: "..tostring(data))
 
-		self.player_name = chance:name()
-		swtest.updateaccount( self, function(data) 
-					
+		setname(self, chance:name(), function(data) 
 			-- find the game name 
 			swtest.findgame( self, self.gamename, function(data) 
 				logtext(self, data["status"])
@@ -57,26 +94,56 @@ local function joingame(self)
 end 
 
 -- ---------------------------------------------------------------------------
+-- Players have either left or joined the game. 
+--   Find out who, and then add/remove other player objects
+--   Also determines if we have all the players that are in the game 
+--   during startup and adds them 
+local function playerschanged(self) 
+
+	print(#self.game.people)
+	for k,v in ipairs(self.game.people) do 
+		-- Missing player - add it! - disable input!!
+		-- dont add self 
+		if(self.player_uid ~= v.uid) then 
+		if(self.otherplayers[v.uid] == nil) then 
+
+			local newplayer = factory.create("/players#playerfactory", START_POS, nil, {})
+			msg.post(newplayer, "player_details", { name = v.username, color = COLOR_WHITE, other=true})
+			self.otherplayers[v.uid] = newplayer
+		end 
+		end
+	end 
+end
+-- ---------------------------------------------------------------------------
+
+function updatestates(self)
+
+	if(self.game.states == nil) then return end 
+	print(#self.game.states)
+	for k,v in ipairs(self.game.states) do 
+		if(v.uid) then 
+			local pid = self.otherplayers[v.uid]
+			if(pid) then
+				go.animate(pid, "position", go.PLAYBACK_ONCE_FORWARD, vmath.vector3(v.x, v.y, 1), go.EASING_LINEAR, 0.2)
+			end 
+		end 
+	end
+	self.game.states = nil
+end 
+
+-- ---------------------------------------------------------------------------
 
 function init(self)
-	self.paused = false
+	self.gamerunning 	= false
+	self.otherplayers 	= {}
+	self.frame 			= 0
+
 	msg.post(".", "acquire_input_focus")
 	chance:seed(os.time())
 
 	swtest.setup(self, "WarBattlesMP", "player1")
 	swtest.login(self, function(data) 
 		logtext(self, "Login OK.")
-	end)
-
-	-- Polling is used to sync game state from server
-	self.poller = timer.delay(0.2, true, function()
-
-		if(self.game) then 
-			logtext(self, "Polling gameX...")
-			swtest.updategame( self, function(data)
-				pprint(data)
-			end)
-		end
 	end)
 end
 
@@ -88,13 +155,63 @@ end
 -- ---------------------------------------------------------------------------
 
 function update(self, dt)
+
+	-- Polling is used to sync game state from server
+	if(self.frame % 180 == 0) then 
+		if(self.game and self.game.people) then
+			local plist = ""
+			for k,v in ipairs(self.game.people) do 
+				plist = plist..v.username.."\n"
+			end 
+			msg.post("/gui#ui", "update_players", {players = plist})
+		end 
+	end
+
+	if(self.frame % 30 == 0) then 
+
+		if(self.game and self.send_state) then 
+			swtest.sendplayerdata( self, json.encode(self.send_state))
+		end 
+	end
+
+	if(self.frame % 60 == 0) then 
+		
+		if(self.game) then 
+			swtest.updategame( self, function(data)
+				-- pprint(data)
+				self.game = json.decode(data)
+				local ocount = utils.tcount(self.otherplayers)
+				if(ocount + 1 ~= #self.game.people) then 
+					playerschanged(self)
+				end
+				if(self.game.state) then 
+					updatestates(self) 
+				end 
+			end)
+		end
+	end
+	self.frame = self.frame + 1
+end
+
+-- ---------------------------------------------------------------------------
+
+local function cleanupgame(self)
+	if(self.thisplayer) then 
+		go.delete(self.thisplayer)
+		self.thisplayer = nil 
+	end
+	
+	for k,v in pairs(self.otherplayers) do 
+		go.delete(v)
+	end 
+	self.otherplayers = {}
 end
 
 -- ---------------------------------------------------------------------------
 
 local function togglegui(self)
-	self.paused = not self.paused
-	if(self.paused) then 
+	self.gamerunning = not self.gamerunning
+	if(self.gamerunning) then 
 		msg.post("/gui-bg", "disable")	
 		msg.post("/gui-lobby", "disable")	
 		msg.post("/gui-players", "disable")
@@ -102,6 +219,10 @@ local function togglegui(self)
 		msg.post("/gui-bg", "enable")	
 		msg.post("/gui-lobby", "enable")	
 	end
+
+	if(self.gamerunning == false) then 
+		cleanupgame(self)
+	end 
 end
 
 -- ---------------------------------------------------------------------------
@@ -114,8 +235,20 @@ function on_message(self, message_id, message, sender)
 	-- Joining can mean either joining a current game or creating and joining a new one
 	if( message_id== hash("joingame") ) then 
 		self.gamename = message.gamename
+		msg.post("/gui#ui", "update_gamename", {name = self.gamename})
 		if(self.gamename and string.len(self.gamename)) then 
 			joingame(self)
+		end 
+	end
+	if( message_id== hash("setname") ) then 
+		if(message.name and string.len(message.name)) then 
+			setname(self, message.name, function(data) 
+				swtest.updategame( self, function(gamedata)
+					self.game = json.decode(gamedata)
+					-- pprint(gamedata)
+					msg.post("/gui-players", "gamestart", { people = self.game.people })
+				end)
+			end)
 		end 
 	end
 	if(message_id == hash("mainmenu") ) then 
@@ -126,6 +259,30 @@ function on_message(self, message_id, message, sender)
 			self.game = nil
 		end)
 	end
+
+	if(message_id == hash("begingame") ) then 
+
+		-- TODO: put this in a func
+		self.otherplayers 	= {}
+		self.thisplayer = factory.create("/players#playerfactory", START_POS, nil, {})
+		msg.post(self.thisplayer, "player_details", {name = self.player_name, color = self.player_color})
+		self.gamerunning = true
+	end
+
+	-- Send server player move
+	--    Server collects these, then sends out to other players in state 
+	--    output. 
+	if(message_id == hash("move_player") ) then 
+		self.send_state = {
+			x = message.x, 
+			y = message.y,
+			dx = message.dir.x,
+			dy = message.dir.y, 
+			s = message.speed,
+			uid = self.user_id,
+			ts = socket.gettime(),
+		}
+	end 
 end
 
 -- ---------------------------------------------------------------------------

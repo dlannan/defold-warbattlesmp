@@ -51,20 +51,22 @@ function on_input(self, action_id, action)
 	local group = gooey.group("group2", function()
 
 		gooey.button("start", action_id, action, function(button)
-			if button.long_pressed then
-				print("Button was long pressed")
-			else
-				print("Button was pressed")
-				msg.post("gui-runtime", "togglegui")	
+			if not button.long_pressed then
+				msg.post("gui-runtime", "togglegui")
+				msg.post("gui-runtime", "begingame")
 			end
 		end, update_button)
 
 		gooey.button("button_back", action_id, action, function(button)
-			if button.long_pressed then
-				print("Button was long pressed")
-			else
-				print("Button was pressed")
+			if not button.long_pressed then
 				msg.post("gui-runtime", "mainmenu")
+			end
+		end, update_button)
+
+		gooey.button("button_setname", action_id, action, function(button)
+			if not button.long_pressed then
+				local name = gui.get_text(gui.get_node("input_myname"))
+				msg.post("gui-runtime", "setname", { name = name })
 			end
 		end, update_button)
 		
@@ -88,10 +90,11 @@ function on_message(self, message_id, message, sender)
 
 	if(message_id == hash("gamestart")) then 
 		if(message.people) then 
-			--self.list_data = {}
+			self.list_data = {}
 			for k,v in ipairs(message.people) do 
 				self.list_data[k] = v.username
 			end 
+			print("SETTING GAME")
 			gooey.dynamic_list("dynamiclist", "dynamiclist_bounds", "listitem", 
 				self.list_data, nil, nil, nil, nil, update_list)
 		end

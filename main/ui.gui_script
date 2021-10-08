@@ -8,4 +8,14 @@ function on_message(self, message_id, message, sender)
 		local scorenode = gui.get_node("score")             -- [4]
 		gui.set_text(scorenode, "SCORE: " .. self.score)    -- [5]
 	end 
+
+	if message_id == hash("update_players") then 
+		local players = gui.get_node("players")  
+		gui.set_text(players, message.players)
+	end
+	
+	if message_id == hash("update_gamename") then 
+		local gamename = gui.get_node("gamename")  
+		gui.set_text(gamename, message.name)
+	end
 end
