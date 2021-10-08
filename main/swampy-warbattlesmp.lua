@@ -33,6 +33,7 @@ local USER_EVENT 	= {
 	REQUEST_START 	= 20,
 	REQUEST_WAITING = 30,
 	REQUEST_ROUND 	= 40,
+	REQUEST_PEOPLE 	= 41,
 
 	-- Some War Battle Specific Events 
 	PLAYER_STATE 	= 50, 		-- Generic DO EVERYTHING state 
@@ -226,7 +227,7 @@ local function make_requestgamestate(client, game_name, device_id)
 	-- User submission data must be in this format - will be checked
 	local userdata = {
 
-		state       = GAME.GAME_JOINING,   
+		state       = nil,   
 		uid         = device_id,
 		name        = game_name,
 		round       = 0,
@@ -274,86 +275,6 @@ local function pollgame(self)
 	end, bodystr)
 end 
 
--- ---------------------------------------------------------------------------
-
-local function updateready(self, ready) 
-
-	local ok, resp = check_connect(self) 
-	if(ok == nil) then print(resp.status); return nil end 
-
-	if(self.game.state ~= GAME.GAME_JOINING) then return end
-
-	local body = make_requestgamestate( self.swp_client, self.game_name, self.device_id )
-	body.event = USER_EVENT.REQUEST_READY
-	body.json = { state = tostring(ready or 0) }
-	local bodystr = json.encode(body)
-
-	swampy.game_update( self.swp_client, self.game_name, self.device_id, function(data)
-
-	end, bodystr)
-end 
-
--- ---------------------------------------------------------------------------
-
-local function startgame(self, callback)
-
-	local ok, resp = check_connect(self) 
-	if(ok == nil) then callback(resp); return nil end 
-	if(self.game.state ~= GAME.GAME_JOINING) then return end
-
-	-- This sets the server game state to match the owner	
-	local body = make_requestgamestate( self.swp_client, self.game_name, self.device_id )
-	body.state = self.game.state
-	body.event = USER_EVENT.REQUEST_START
-	local bodystr = json.encode(body)
-	swampy.game_update( self.swp_client, self.game_name, self.device_id, function(data)
-
-		-- The game is returned on start - use this for game obj
-		if(data.status == "OK") then 
-			callback(data.result)
-		else 
-			print("Error starting game: ", data.results)
-		end 
-	end, bodystr)
-end 
-
--- ---------------------------------------------------------------------------
-
-local function exitgame(self, callback)
-
-	local ok, resp = check_connect(self) 
-	if(ok == nil) then callback(resp); return nil end 
-	local body = make_requestgamestate( self.swp_client, self.game_name, self.device_id )
-	body.state = GAME.EXIT
-	local bodystr = json.encode(body)
-	swampy.game_update( self.swp_client, self.game_name, self.device_id, function(data)
-		callback()
-	end, bodystr)
-end 
-
--- ---------------------------------------------------------------------------
-
-local function updategamestate(self, callback)
-
-	local ok, resp = check_connect(self) 
-	if(ok == nil) then callback(resp); return nil end 
-	if(self.game.state == nil or self.game.state < GAME.GAME_JOINING) then return end
-
-	local body = make_requestgamestate( self.swp_client, self.game_name, self.device_id )
-	body.state = self.game.state
-	body.event = USER_EVENT.REQUEST_ROUND
-	local bodystr = json.encode(body)
-	swampy.game_update( self.swp_client, self.game_name, self.device_id, function(data)
-
-		-- The game is returned on start - use this for game obj
-		if(data.status == "OK") then 
-			callback(data.result)
-		else 
-			print("Error updating round: ", data.results)
-		end 
-	end, bodystr)
-end 
-
 
 -- ---------------------------------------------------------------------------
 
@@ -372,6 +293,38 @@ end
 
 -- ---------------------------------------------------------------------------
 
+local function reqround(self, callback)
+
+	local ok, resp = check_connect(self) 
+	if(ok == nil) then callback(resp); return nil end 
+
+	local body = make_requestgamestate( self.swp_client, self.game_name, self.device_id )
+	body.event = USER_EVENT.REQUEST_ROUND
+	local bodystr = json.encode(body)
+	swampy.game_update( self.swp_client, self.game_name, self.device_id, function(data) 
+		callback(data)
+	end, bodystr)
+end 
+
+
+-- ---------------------------------------------------------------------------
+
+local function reqpeople(self, callback)
+
+	local ok, resp = check_connect(self) 
+	if(ok == nil) then callback(resp); return nil end 
+
+	local body = make_requestgamestate( self.swp_client, self.game_name, self.device_id )
+	body.event = USER_EVENT.REQUEST_PEOPLE
+	local bodystr = json.encode(body)
+	swampy.game_update( self.swp_client, self.game_name, self.device_id, function(data) 
+		callback(data)
+	end, bodystr)
+end 
+
+
+-- ---------------------------------------------------------------------------
+
 local function waiting(self)
 
 	local ok, resp = check_connect(self) 
@@ -379,7 +332,7 @@ local function waiting(self)
 	if(self.game == nil) then pprint("Invalid Game: ", self.game); return end 
 
 	local body = make_requestgamestate( self.swp_client, self.game_name, self.device_id )
-	body.state = self.game.state or GAME.GAME_JOINING
+	body.state = self.game.state or { event = GAME.GAME_JOINING }
 	body.event = USER_EVENT.REQUEST_WAITING
 	local bodystr = json.encode(body)
 	pprint("WAITING: "..tostring(body.state))
@@ -500,7 +453,8 @@ return {
 
 	sendplayerdata	= sendplayerdata,
 
-	updateround 	= updateround,
+	reqround 		= reqround,
+	reqpeople 		= reqpeople,
 
 	waiting 		= waiting,
 }

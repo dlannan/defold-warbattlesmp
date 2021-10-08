@@ -118,17 +118,19 @@ end
 
 function updatestates(self)
 
-	if(self.game.states == nil) then return end 
-	print(#self.game.states)
-	for k,v in ipairs(self.game.states) do 
+	if(self.game.state == nil) then return end 
+	for k,v in ipairs(self.game.state) do 
 		if(v.uid) then 
 			local pid = self.otherplayers[v.uid]
 			if(pid) then
-				go.animate(pid, "position", go.PLAYBACK_ONCE_FORWARD, vmath.vector3(v.x, v.y, 1), go.EASING_LINEAR, 0.2)
+				local pos = vmath.vector3(v.x, v.y, 1)
+				--go.animate(pid, "position", go.PLAYBACK_ONCE_FORWARD, pos, go.EASING_LINEAR, 0.2)
+				go.set_position(pos, pid)
 			end 
 		end 
 	end
-	self.game.states = nil
+	-- Consume whole state list
+	self.game.state = nil
 end 
 
 -- ---------------------------------------------------------------------------
@@ -167,26 +169,31 @@ function update(self, dt)
 		end 
 	end
 
-	if(self.frame % 30 == 0) then 
+	if(self.frame % 20 == 0) then 
 
-		if(self.game and self.send_state) then 
-			swtest.sendplayerdata( self, json.encode(self.send_state))
-		end 
-	end
-
-	if(self.frame % 60 == 0) then 
-		
 		if(self.game) then 
-			swtest.updategame( self, function(data)
+			swtest.reqround( self, function(data)
 				-- pprint(data)
-				self.game = json.decode(data)
-				local ocount = utils.tcount(self.otherplayers)
-				if(ocount + 1 ~= #self.game.people) then 
-					playerschanged(self)
-				end
-				if(self.game.state) then 
+				if(data) then 
+					self.game.state = json.decode(data.result)
 					updatestates(self) 
 				end 
+			end)
+		end
+	end
+
+	if(self.frame % 30 == 0) then 
+		
+		if(self.game) then 
+			swtest.reqpeople( self, function(data)
+				-- pprint(data)
+				if(data) then 
+					self.game.people = json.decode(data.result)
+					local ocount = utils.tcount(self.otherplayers)
+					if(ocount + 1 ~= #self.game.people) then 
+						playerschanged(self)
+					end
+				end
 			end)
 		end
 	end
@@ -280,8 +287,10 @@ function on_message(self, message_id, message, sender)
 			dy = message.dir.y, 
 			s = message.speed,
 			uid = self.user_id,
-			ts = socket.gettime(),
+			-- lt = 1, -- Can set lifetime of state
 		}
+		print("[SENDING STATE]")
+		swtest.sendplayerdata( self, json.encode(self.send_state))
 	end 
 end
 

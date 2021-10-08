@@ -7,7 +7,7 @@ function init(self)
 end
 
 local function explode(self)                                -- [1]
-	self.life = 800
+	self.life = 400
 	go.set_rotation(vmath.quat())
 	self.speed = 0
 	self.exploding = true
