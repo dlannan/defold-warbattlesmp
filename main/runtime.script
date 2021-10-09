@@ -4,6 +4,8 @@ local json 	 = require("swampy.utils.json")
 local chance = require("lua.chance")
 local utils  = require("lua.utils")
 
+local bser 	 = require("lua.binser")
+
 -- Dodgy fixed point to start with
 local START_POS 	= vmath.vector3(100, 100, 1)
 
@@ -53,7 +55,6 @@ local function setname(self, name, callback)
 	self.player_name 	= name
 	self.player_uid 	= self.user_id
 	swtest.updateaccount( self, function(data) 
-		pprint(data)
 		callback(data)
 	end)
 end
@@ -105,12 +106,13 @@ local function playerschanged(self)
 		-- Missing player - add it! - disable input!!
 		-- dont add self 
 		if(self.player_uid ~= v.uid) then 
-		if(self.otherplayers[v.uid] == nil) then 
+			if(self.otherplayers[v.uid] == nil) then 
 
-			local newplayer = factory.create("/players#playerfactory", START_POS, nil, {})
-			msg.post(newplayer, "player_details", { name = v.username, color = COLOR_WHITE, other=true})
-			self.otherplayers[v.uid] = newplayer
-		end 
+				print("creating other player: ", v.uid, v.username)
+				local newplayer = factory.create("/players#playerfactory", START_POS, nil, {})
+				msg.post(newplayer, "player_details", { name = v.username, color = COLOR_WHITE, other=true})
+				self.otherplayers[v.uid] = newplayer
+			end 
 		end
 	end 
 end
@@ -125,7 +127,8 @@ function updatestates(self)
 			if(pid) then
 				local pos = vmath.vector3(v.x, v.y, 1)
 				--go.animate(pid, "position", go.PLAYBACK_ONCE_FORWARD, pos, go.EASING_LINEAR, 0.2)
-				go.set_position(pos, pid)
+				--go.set_position(pos, pid)
+				msg.post(pid, "player_move", v)
 			end 
 		end 
 	end
@@ -139,6 +142,7 @@ function init(self)
 	self.gamerunning 	= false
 	self.otherplayers 	= {}
 	self.frame 			= 0
+	self.sendbuffer 	= {}
 
 	msg.post(".", "acquire_input_focus")
 	chance:seed(os.time())
@@ -169,13 +173,19 @@ function update(self, dt)
 		end 
 	end
 
-	if(self.frame % 20 == 0) then 
-
+	-- if(self.frame % 10 == 0) then 
+	-- 	if(self.game) then 
+	-- 		local data = table.remove( self.sendbuffer, 1 )
+	-- 		swtest.sendplayerdata( self, data)
+	-- 	end 
+	-- end
+	-- 
+	if(self.frame % 10 == 0) then 
 		if(self.game) then 
 			swtest.reqround( self, function(data)
-				-- pprint(data)
 				if(data) then 
-					self.game.state = json.decode(data.result)
+					print(string.len(data.result))
+					self.game.state = bser.deserialize(data.result)[1]
 					updatestates(self) 
 				end 
 			end)
@@ -186,12 +196,13 @@ function update(self, dt)
 		
 		if(self.game) then 
 			swtest.reqpeople( self, function(data)
-				-- pprint(data)
 				if(data) then 
-					self.game.people = json.decode(data.result)
-					local ocount = utils.tcount(self.otherplayers)
-					if(ocount + 1 ~= #self.game.people) then 
-						playerschanged(self)
+					if(string.len(data.result) > 2) then 
+						self.game.people = bser.deserialize(data.result)[1]
+						local ocount = utils.tcount(self.otherplayers)
+						if(ocount + 1 ~= #self.game.people) then 
+							playerschanged(self)
+						end
 					end
 				end
 			end)
@@ -203,6 +214,8 @@ end
 -- ---------------------------------------------------------------------------
 
 local function cleanupgame(self)
+
+	print("[CLEANUP GAME]")
 	if(self.thisplayer) then 
 		go.delete(self.thisplayer)
 		self.thisplayer = nil 
@@ -241,6 +254,7 @@ function on_message(self, message_id, message, sender)
 	end
 	-- Joining can mean either joining a current game or creating and joining a new one
 	if( message_id== hash("joingame") ) then 
+		self.otherplayers 	= {}
 		self.gamename = message.gamename
 		msg.post("/gui#ui", "update_gamename", {name = self.gamename})
 		if(self.gamename and string.len(self.gamename)) then 
@@ -261,7 +275,7 @@ function on_message(self, message_id, message, sender)
 	if(message_id == hash("mainmenu") ) then 
 		msg.post("/gui-bg", "enable")	
 		msg.post("/gui-lobby", "enable")	
-		msg.post("/gui-players", "disable")
+		msg.post("/gui-players", "diself.pos_target = possable")
 		swtest.leavegame( self, self.gamename, function(data) 
 			self.game = nil
 		end)
@@ -270,7 +284,6 @@ function on_message(self, message_id, message, sender)
 	if(message_id == hash("begingame") ) then 
 
 		-- TODO: put this in a func
-		self.otherplayers 	= {}
 		self.thisplayer = factory.create("/players#playerfactory", START_POS, nil, {})
 		msg.post(self.thisplayer, "player_details", {name = self.player_name, color = self.player_color})
 		self.gamerunning = true
@@ -280,17 +293,12 @@ function on_message(self, message_id, message, sender)
 	--    Server collects these, then sends out to other players in state 
 	--    output. 
 	if(message_id == hash("move_player") ) then 
-		self.send_state = {
-			x = message.x, 
-			y = message.y,
-			dx = message.dir.x,
-			dy = message.dir.y, 
-			s = message.speed,
-			uid = self.user_id,
-			-- lt = 1, -- Can set lifetime of state
-		}
-		print("[SENDING STATE]")
-		swtest.sendplayerdata( self, json.encode(self.send_state))
+
+		local state 	= message.state 
+		state.uid 		= self.user_id
+		-- message.lt = 1, -- Can set lifetime of state
+		swtest.sendplayerdata( self, bser.serialize(state))
+		--table.insert(self.sendbuffer, bser.serialize(send_state))
 	end 
 end
 

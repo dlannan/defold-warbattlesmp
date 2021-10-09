@@ -2,12 +2,12 @@ go.property("dir", vmath.vector3())                 -- [1]
 
 function init(self)
 	self.speed = 200                                -- [2]
-	self.life = 1  
+	self.life = 0.5
 	self.exploding = false
 end
 
 local function explode(self)                                -- [1]
-	self.life = 400
+	self.life = 1
 	go.set_rotation(vmath.quat())
 	self.speed = 0
 	self.exploding = true

@@ -4,6 +4,7 @@ local tremove 	= table.remove
 local swampy 	= require "swampy.swampy"
 local url 		= require "swampy.utils.url"
 local json 		= require "swampy.utils.json"
+local bser 		= require "lua.binser"
 
 -- Some general settings. This is game specific.
 local MAX_CONNECT_ATTEMPTS		= 10
@@ -286,7 +287,7 @@ local function sendplayerdata(self, pstate)
 	local body = make_requestgamestate( self.swp_client, self.game_name, self.device_id )
 	body.state = pstate
 	body.event = USER_EVENT.PLAYER_STATE
-	local bodystr = json.encode(body)
+	local bodystr = bser.serialize(body)
 	swampy.game_update( self.swp_client, self.game_name, self.device_id, function() end, bodystr)
 end 
 
@@ -300,7 +301,7 @@ local function reqround(self, callback)
 
 	local body = make_requestgamestate( self.swp_client, self.game_name, self.device_id )
 	body.event = USER_EVENT.REQUEST_ROUND
-	local bodystr = json.encode(body)
+	local bodystr = bser.serialize(body)
 	swampy.game_update( self.swp_client, self.game_name, self.device_id, function(data) 
 		callback(data)
 	end, bodystr)
@@ -316,7 +317,7 @@ local function reqpeople(self, callback)
 
 	local body = make_requestgamestate( self.swp_client, self.game_name, self.device_id )
 	body.event = USER_EVENT.REQUEST_PEOPLE
-	local bodystr = json.encode(body)
+	local bodystr = bser.serialize(body)
 	swampy.game_update( self.swp_client, self.game_name, self.device_id, function(data) 
 		callback(data)
 	end, bodystr)
