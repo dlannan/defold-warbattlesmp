@@ -18,8 +18,16 @@ fire_lookup[-11]	= 3.92699
 
 go.property("pcolor", vmath.vector4(1,1,1,1))
 
-local DIST_CHANGED 		= 3
+local DIST_CHANGED 		= 5
 local MOVE_SMOOTH		= 4.0
+
+-- Types of prediction available.
+local PREDICTION = {
+	NONE 	= "none",
+	CLIENT	= "client", 
+	SERVER	= "server",
+}
+
 -- -----------------------------------------------------------------------------
 
 function init(self)
@@ -35,10 +43,14 @@ function init(self)
 	self.lastdt = 0
 	self.frame 	= 0
 
-	self.posL 	= vmath.vector3()
+	self.posL 		= vmath.vector3()
 	-- Used to collect update states for the object
 	self.updater 	= {}
 	self.pos_target = go.get_position()
+
+	self.prediction = PREDICTION.NONE
+	self.prev_input = { x = 0, y = 0 }
+	self.move_t = socket.gettime()
 end
 
 -- -----------------------------------------------------------------------------
@@ -48,27 +60,54 @@ function final(self)                                -- [7]
 end
 
 -- -----------------------------------------------------------------------------
+--  Update other players - prediction or latent
+local function other_update(self, dt)
+
+	local pos = go.get_position()
+	local smoothstep = MOVE_SMOOTH * dt
+	local tpos = pos
+	
+	local thismove = table.remove(self.updater, 1)
+	if(thismove) then 
+		self.pos_target = thismove.pos
+		tpos = thismove.pos
+		local m = thismove.m
+		self.moving = m.m
+		self.firing = m.f
+		self.strdir = m.ix * 10 + m.iy
+		self.dir = vmath.vector3(m.dx, m.dy, 0)
+		self.move_t = m.t
+		self.speed = m.s
+	end
+
+	-- prediction take in the frame id and estimates new targetpos
+	if(self.prediction == PREDICTION.CLIENT) then 
+
+		if(self.strdir == 0) then self.speed = 0 end
+		local timeout = socket.gettime() - self.move_t
+		self.move_t = socket.gettime()
+		-- this predicts to current frame. We predict a little past that.
+		local newtarget = tpos + self.dir * self.speed * timeout
+		smoothstep = 0.3 -- much less smoothing.
+		go.set_position( vmath.lerp(smoothstep, pos, newtarget) )
+	else
+		go.set_position( vmath.lerp(smoothstep, pos, self.pos_target) )
+	end
+end
+
+-- -----------------------------------------------------------------------------
 
 local function do_update(self, dt)
 
 	self.lastdt = dt
-
+	print(self.prediction)
+		
 	if(self.other) then 		
-		local thismove = table.remove(self.updater, 1)
-		if(thismove) then 
-			self.pos_target = thismove.pos
-			local m = thismove.m
-			if(m.f) then 
-				self.firing = true 
-				self.strdir = m.ix * 10 + m.iy
-				self.dir = vmath.vector3(m.dx, m.dy, 0)
-			end
-		end
-		local pos = go.get_position()
-		go.set_position( vmath.lerp(MOVE_SMOOTH * dt, pos, self.pos_target) )
+		other_update(self, dt)
 	else
 		-- stopped moving.
-		if(self.moving == false and self.moving_old) then 
+		if(self.moving == false and 
+			(self.input.x ~= self.prev_input.x or self.input.y ~= self.prev_input.y)) then 
 			local pos = go.get_position()
 			msg.post("gui-runtime", "move_player", { state = {
 					x = pos.x,
@@ -80,9 +119,9 @@ local function do_update(self, dt)
 					dy = self.dir.y,
 					s = self.speed,
 					f = self.firing,
+					t = socket.gettime(),
 				}
 			})
-			self.moving_old = nil 
 		end
 
 		if self.moving then
@@ -101,7 +140,7 @@ local function do_update(self, dt)
 		factory.create("#rocketfactory", nil, rot, props)   -- [4]
 	end
 
-	if(self.input.x ~= 0 or self.input.y ~= 0) then self.moving_old = true end 
+	self.prev_input = { x = self.input.x, y = self.input.y }
 	self.input.x = 0
 	self.input.y = 0
 	self.moving = false
@@ -119,6 +158,16 @@ end
 local function do_input(self, action_id, action)
 
 	if(self.other == nil) then 
+		
+		if(action_id == hash("predict") and action.released) then 
+			-- if(self.prediction == PREDICTION.NONE) then 
+			-- 	self.prediction = PREDICTION.CLIENT
+			-- else 
+			-- 	self.prediction = PREDICTION.NONE 
+			-- end
+			msg.post("/gui#ui", "predict", { prediction = self.prediction })
+		end 
+		
 		if action_id == hash("fire") and action.pressed then
 			self.firing = true
 		end
@@ -141,7 +190,9 @@ local function do_input(self, action_id, action)
 	
 	if(self.other == nil) then 
 		local pos = go.get_position()
-		if((vmath.length(pos-self.posL) > DIST_CHANGED) or (self.firing)) then 
+		local inpchanged = (self.prev_input.x ~= self.input.x or self.prev_input.y ~= self.input.y)
+		if((inpchanged == false and vmath.length(pos-self.posL) > DIST_CHANGED) or 
+			(inpchanged) or	(self.firing)) then 
 			
 			msg.post("gui-runtime", "move_player", { state = {
 					x = pos.x,
@@ -153,6 +204,7 @@ local function do_input(self, action_id, action)
 					dy = self.dir.y,
 					s = self.speed,
 					f = self.firing,
+					t = socket.gettime(),
 				}
 			})
 			self.posL = pos
@@ -189,14 +241,11 @@ function on_message(self, message_id, message, sender)
 			self.other = true
 		end
 	end 
-
+	
 	if(self.other) then 
 		if message_id == hash("player_move") then 
-			local pos = go.get_position()
 			self.pos = vmath.vector3(message.x, message.y, 1)
-			if(vmath.length(pos - self.pos) > DIST_CHANGED) then 
-				table.insert(self.updater, { pos = self.pos, m = message })
-			end
+			table.insert(self.updater, { pos = self.pos, m = message })
 		end 
 	end
 end

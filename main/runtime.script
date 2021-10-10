@@ -101,14 +101,14 @@ end
 --   during startup and adds them 
 local function playerschanged(self) 
 
-	print(#self.game.people)
+	-- print("PEOPLE:", utils.tcount(self.game.people))
 	for k,v in ipairs(self.game.people) do 
 		-- Missing player - add it! - disable input!!
 		-- dont add self 
 		if(self.player_uid ~= v.uid) then 
 			if(self.otherplayers[v.uid] == nil) then 
 
-				print("creating other player: ", v.uid, v.username)
+				-- print("creating other player: ", v.uid, v.username)
 				local newplayer = factory.create("/players#playerfactory", START_POS, nil, {})
 				msg.post(newplayer, "player_details", { name = v.username, color = COLOR_WHITE, other=true})
 				self.otherplayers[v.uid] = newplayer
@@ -121,11 +121,14 @@ end
 function updatestates(self)
 
 	if(self.game.state == nil) then return end 
-	for k,v in ipairs(self.game.state) do 
-		if(v.uid) then 
+	local state_count = utils.tcount(self.game.state)
+	-- pprint("[STATE COUNT]", state_count)
+	for i = 1, state_count do 
+		local v = table.remove(self.game.state, 1)
+		if(v and v.uid) then 
 			local pid = self.otherplayers[v.uid]
 			if(pid) then
-				local pos = vmath.vector3(v.x, v.y, 1)
+				-- local pos = vmath.vector3(v.x, v.y, 1)
 				--go.animate(pid, "position", go.PLAYBACK_ONCE_FORWARD, pos, go.EASING_LINEAR, 0.2)
 				--go.set_position(pos, pid)
 				msg.post(pid, "player_move", v)
@@ -183,8 +186,8 @@ function update(self, dt)
 	if(self.frame % 10 == 0) then 
 		if(self.game) then 
 			swtest.reqround( self, function(data)
-				if(data) then 
-					print(string.len(data.result))
+				if(data.status == "OK") then 
+--					print("[DATALEN]", string.len(data.result))
 					self.game.state = bser.deserialize(data.result)[1]
 					updatestates(self) 
 				end 
@@ -196,7 +199,7 @@ function update(self, dt)
 		
 		if(self.game) then 
 			swtest.reqpeople( self, function(data)
-				if(data) then 
+				if(data.status == "OK") then 
 					if(string.len(data.result) > 2) then 
 						self.game.people = bser.deserialize(data.result)[1]
 						local ocount = utils.tcount(self.otherplayers)
@@ -275,7 +278,7 @@ function on_message(self, message_id, message, sender)
 	if(message_id == hash("mainmenu") ) then 
 		msg.post("/gui-bg", "enable")	
 		msg.post("/gui-lobby", "enable")	
-		msg.post("/gui-players", "diself.pos_target = possable")
+		msg.post("/gui-players", "disable")
 		swtest.leavegame( self, self.gamename, function(data) 
 			self.game = nil
 		end)

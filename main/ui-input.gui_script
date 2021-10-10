@@ -3,7 +3,7 @@ local utils = require "gooey.themes.utils"
 local chance = require("lua.chance")
 
 chance:seed(os.time())
-local DEFAULT_GAME_NAME 	= chance:word(2)
+local DEFAULT_GAME_NAME 	= chance:word(1)
 
 local COLOR_LIGHTGREY = vmath.vector4(0.8, 0.8, 0.8, 1)
 local COLOR_WHITE = vmath.vector4(1)

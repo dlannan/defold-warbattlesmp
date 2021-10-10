@@ -18,4 +18,9 @@ function on_message(self, message_id, message, sender)
 		local gamename = gui.get_node("gamename")  
 		gui.set_text(gamename, message.name)
 	end
+
+	if message_id == hash("predict") then 
+		local predict = gui.get_node("predict")  
+		gui.set_text(predict, "prediction: "..tostring(message.prediction))
+	end
 end

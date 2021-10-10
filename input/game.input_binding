@@ -42,6 +42,10 @@ key_trigger {
   input: KEY_D
   action: "right"
 }
+key_trigger {
+  input: KEY_P
+  action: "predict"
+}
 mouse_trigger {
   input: MOUSE_BUTTON_1
   action: "touch"
