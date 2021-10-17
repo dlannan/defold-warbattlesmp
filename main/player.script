@@ -69,9 +69,10 @@ local function other_update(self, dt)
 	
 	local thismove = table.remove(self.updater, 1)
 	if(thismove) then 
-		self.pos_target = thismove.pos
-		tpos = thismove.pos
 		local m = thismove.m
+		self.pos_target = vmath.vector3(m.x, m.y, 1)
+		tpos = thismove.pos
+		
 		self.moving = m.m
 		self.firing = m.f
 		self.strdir = m.ix * 10 + m.iy
@@ -86,9 +87,11 @@ local function other_update(self, dt)
 		if(self.strdir == 0) then self.speed = 0 end
 		local timeout = socket.gettime() - self.move_t
 		self.move_t = socket.gettime()
+		dir = (self.pos_target - pos)
+		-- if(vmath.length(self.dir) > 0) then self.dir = vmath.normalize(self.dir) end
 		-- this predicts to current frame. We predict a little past that.
-		local newtarget = tpos + self.dir * self.speed * timeout
-		smoothstep = 0.3 -- much less smoothing.
+		local newtarget = tpos + dir * self.speed * dt
+		smoothstep = 0.1 -- much less smoothing.
 		go.set_position( vmath.lerp(smoothstep, pos, newtarget) )
 	else
 		go.set_position( vmath.lerp(smoothstep, pos, self.pos_target) )

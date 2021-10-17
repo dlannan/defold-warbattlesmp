@@ -3,6 +3,7 @@ title = War battles MP
 version = 0.1
 dependencies#0 = https://github.com/britzl/gooey/archive/master.zip
 dependencies#1 = https://github.com/dlannan/swampy-defold/archive/master.zip
+dependencies#2 = https://github.com/defold/extension-websocket/archive/master.zip
 
 [bootstrap]
 main_collection = /main/main.collectionc
@@ -23,4 +24,13 @@ shared_state = 1
 
 [tilemap]
 max_tile_count = 10000
+
+[engine]
+run_while_iconified = 1
+
+[resource]
+http_cache = 1
+
+[profiler]
+track_cpu = 0
 

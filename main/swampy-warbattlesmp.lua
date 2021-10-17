@@ -54,16 +54,36 @@ end
 
 local function websocket_callback(self, conn, data)
 	if data.event == websocket.EVENT_DISCONNECTED then
-		log("Disconnected: " .. tostring(conn))
-		self.connection = nil
-		update_gui(self)
+		pprint("Disconnected: " .. tostring(conn))
+		self.ws_connect = nil
 	elseif data.event == websocket.EVENT_CONNECTED then
-		update_gui(self)
-		log("Connected: " .. tostring(conn))
+		pprint("Connected: " .. tostring(conn))
 	elseif data.event == websocket.EVENT_ERROR then
-		log("Error: '" .. data.message .. "'")
+		pprint("Error: '" .. data.message .. "'")
 	elseif data.event == websocket.EVENT_MESSAGE then
-		log("Receiving: '" .. tostring(data.message) .. "'")
+		pprint("Receiving: '" .. tostring(data.message) .. "'")
+	end
+end
+
+ ---------------------------------------------------------------------------
+--  Realtime games should use sockets (UDP ideally)
+
+function websocket_open(self)
+	self.url = "ws://45.125.247.75:"..self.game.ws_port
+	local params = {
+		timeout = 3000,
+	}
+	params.headers = "Sec-WebSocket-Protocol: chat\r\n"
+	params.headers = params.headers.."Origin: mydomain.com\r\n"
+
+	self.ws_connect = websocket.connect(self.url, params, websocket_callback)
+end
+
+-- ---------------------------------------------------------------------------
+
+function websocket_close(self)
+	if self.ws_connect ~= nil then
+		websocket.disconnect(self.ws_connect)
 	end
 end
 
@@ -439,6 +459,9 @@ return {
 	updateaccount 	= updateaccount,
 	resetclient		= resetclient,
 
+	websocket_open	= websocket_open,
+	websocket_close = websocket_close,
+	
 	creategame 		= creategame,
 	findgame		= findgame,
 	joingame		= joingame,

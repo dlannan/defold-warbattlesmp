@@ -77,6 +77,7 @@ local function joingame(self)
 					swtest.creategame( self, self.gamename, function(data) 
 						if(data.status and data.status == "OK") then 
 							self.game = json.decode(data.result)
+							swtest.websocket_open(self)
 						end
 						startgame(self, data)
 					end)
@@ -159,6 +160,7 @@ end
 -- ---------------------------------------------------------------------------
 
 function final(self)
+	if(self.game) then swtest.websocket_open(self) end
 end
 
 -- ---------------------------------------------------------------------------
