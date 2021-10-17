@@ -1,3 +1,5 @@
+
+local rlua = require("render.render")
 --
 -- projection that centers content with maintained aspect ratio and optional zoom
 --
@@ -16,6 +18,7 @@ local function fixed_fit_projection(near, far)
     local height = render.get_height() * 0.5
     local window_width = render.get_window_width()
     local window_height = render.get_window_height()
+
     local zoom = math.min(window_width / width, window_height / height)
     return fixed_projection(near, far, zoom)
 end
@@ -23,7 +26,10 @@ end
 -- projection that stretches content
 --
 local function stretch_projection(near, far)
-    return vmath.matrix4_orthographic(0, render.get_width() * 0.5, 0, render.get_height() * 0.5, near, far)
+    local height = render.get_height() * 0.5
+    local width = render.get_width() * 0.5
+    rlua.set_win( width, height )
+    return vmath.matrix4_orthographic(0, width, 0, height, near, far)
 end
 
 local function get_projection(self)
@@ -42,6 +48,8 @@ function init(self)
     self.clear_color.z = sys.get_config("render.clear_color_blue", 0)
     self.clear_color.w = sys.get_config("render.clear_color_alpha", 0)
 
+    self.player_pos = vmath.vector3()
+    self.player_pos_tgt = self.player_pos
     self.view = vmath.matrix4()
 
     -- default is stretch projection. copy from builtins and change for different projection
@@ -60,7 +68,10 @@ function update(self)
     render.clear({[render.BUFFER_COLOR_BIT] = self.clear_color, [render.BUFFER_DEPTH_BIT] = 1, [render.BUFFER_STENCIL_BIT] = 0})
 
     render.set_viewport(0, 0, render.get_window_width(), render.get_window_height())
-    render.set_view(self.view)
+
+    self.player_pos = vmath.lerp(0.1, self.player_pos, self.player_pos_tgt)
+    local mat_trans = vmath.matrix4_translation(self.player_pos)
+    render.set_view(self.view * mat_trans)
 
     render.set_depth_mask(false)
     render.disable_state(render.STATE_DEPTH_TEST)
@@ -107,5 +118,8 @@ function on_message(self, message_id, message)
         self.near = message.near or -1
         self.far = message.far or 1
         self.projection_fn = fixed_fit_projection
+    elseif message_id == hash("use_player_pos") then 
+
+        self.player_pos_tgt = message.player_pos
     end
 end

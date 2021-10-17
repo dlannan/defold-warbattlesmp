@@ -5,9 +5,10 @@ local chance = require("lua.chance")
 local utils  = require("lua.utils")
 
 local bser 	 = require("lua.binser")
+local rlua 	 = require("render.render")
 
 -- Dodgy fixed point to start with
-local START_POS 	= vmath.vector3(100, 100, 1)
+local START_POS 	= vmath.vector3(500, 500, 1)
 
 local COLOR_WHITE 	= vmath.vector4(1, 1, 1, 1)
 
@@ -155,6 +156,8 @@ function init(self)
 	swtest.login(self, function(data) 
 		logtext(self, "Login OK.")
 	end)
+
+	msg.post ("@render:", "use_player_pos", { player_pos = vmath.vector3() })
 end
 
 -- ---------------------------------------------------------------------------
@@ -240,6 +243,7 @@ local function togglegui(self)
 		msg.post("/gui-bg", "disable")	
 		msg.post("/gui-lobby", "disable")	
 		msg.post("/gui-players", "disable")
+		msg.post ("@render:", "use_player_pos", { player_pos = vmath.vector3() })
 	else
 		msg.post("/gui-bg", "enable")	
 		msg.post("/gui-lobby", "enable")	
@@ -300,6 +304,9 @@ function on_message(self, message_id, message, sender)
 	if(message_id == hash("move_player") ) then 
 
 		local state 	= message.state 
+		local w,h 		= rlua.get_win()
+		target_player_pos = vmath.vector3(-state.x + w * 0.5, -state.y + h * 0.5, 0)
+		msg.post ("@render:", "use_player_pos", { player_pos = target_player_pos })
 		state.uid 		= self.user_id
 		-- message.lt = 1, -- Can set lifetime of state
 		swtest.sendplayerdata( self, bser.serialize(state))
