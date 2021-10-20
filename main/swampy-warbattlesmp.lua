@@ -68,7 +68,9 @@ end
  ---------------------------------------------------------------------------
 --  Realtime games should use sockets (UDP ideally)
 
-function websocket_open(self)
+function websocket_open(self, callback)
+
+	callback = callback or websocket_callback
 	self.url = "ws://45.125.247.75:"..self.game.ws_port
 	local params = {
 		timeout = 3000,
@@ -76,7 +78,7 @@ function websocket_open(self)
 	params.headers = "Sec-WebSocket-Protocol: chat\r\n"
 	params.headers = params.headers.."Origin: mydomain.com\r\n"
 
-	self.ws_connect = websocket.connect(self.url, params, websocket_callback)
+	self.ws_connect = websocket.connect(self.url, params, callback)
 end
 
 -- ---------------------------------------------------------------------------

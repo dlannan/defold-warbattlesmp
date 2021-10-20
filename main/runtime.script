@@ -62,6 +62,21 @@ end
 
 -- ---------------------------------------------------------------------------
 
+local function websocket_callback(self, conn, data)
+	if data.event == websocket.EVENT_DISCONNECTED then
+		pprint("Disconnected: " .. tostring(conn))
+		self.ws_connect = nil
+	elseif data.event == websocket.EVENT_CONNECTED then
+		pprint("Connected: " .. tostring(conn))
+	elseif data.event == websocket.EVENT_ERROR then
+		pprint("Error: '" .. data.message .. "'")
+	elseif data.event == websocket.EVENT_MESSAGE then
+		pprint("Receiving: '" .. tostring(data.message) .. "'")
+	end
+end
+
+-- ---------------------------------------------------------------------------
+
 local function joingame(self) 
 
 	-- First connect 
@@ -78,7 +93,7 @@ local function joingame(self)
 					swtest.creategame( self, self.gamename, function(data) 
 						if(data.status and data.status == "OK") then 
 							self.game = json.decode(data.result)
-							swtest.websocket_open(self)
+							swtest.websocket_open(self, websocket_callback)
 						end
 						startgame(self, data)
 					end)

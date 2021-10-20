@@ -3,8 +3,8 @@ instances {
   id: "buildingcoll"
   prototype: "/main/building.go"
   position {
-    x: 0.0
-    y: 0.0
+    x: -22.0
+    y: 29.0
     z: 0.3
   }
   rotation {
@@ -23,8 +23,8 @@ instances {
   id: "buildingcoll1"
   prototype: "/main/building.go"
   position {
-    x: 431.0
-    y: -307.0
+    x: 92.0
+    y: -289.0
     z: 0.3
   }
   rotation {
@@ -43,8 +43,8 @@ instances {
   id: "buildingcoll2"
   prototype: "/main/building.go"
   position {
-    x: -347.0
-    y: 534.0
+    x: -372.0
+    y: -142.0
     z: 0.3
   }
   rotation {

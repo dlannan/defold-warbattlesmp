@@ -51,6 +51,7 @@ function init(self)
 	self.prediction = PREDICTION.NONE
 	self.prev_input = { x = 0, y = 0 }
 	self.move_t = socket.gettime()
+	sprite.play_flipbook("#sprite", hash("player-idle"))
 end
 
 -- -----------------------------------------------------------------------------
@@ -143,6 +144,14 @@ local function do_update(self, dt)
 		factory.create("#rocketfactory", nil, rot, props)   -- [4]
 	end
 
+	if(self.moving and not self.prev_moving) then 
+		sprite.play_flipbook("#sprite", hash("player-down"))
+	end 
+	if(not self.moving and self.prev_moving) then 
+		sprite.play_flipbook("#sprite", hash("player-idle"))
+	end 
+
+	self.prev_moving = self.moving
 	self.prev_input = { x = self.input.x, y = self.input.y }
 	self.input.x = 0
 	self.input.y = 0

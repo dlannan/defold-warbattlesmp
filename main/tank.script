@@ -1,7 +1,10 @@
 function init(self)
-	-- Add initialization code here
-	-- Learn more: https://defold.com/manuals/script/
-	-- Remove this function if not needed
+
+	local pos = go.get_position()
+	self.target_pos = vmath.vector3(pos)
+	self.angle 		= 0.0
+	self.target_rot = vmath.quat_rotation_y(self.angle)
+	self.smoothstep = 0.08
 end
 
 function final(self)
@@ -11,31 +14,26 @@ function final(self)
 end
 
 function update(self, dt)
-	-- Add update code here
-	-- Learn more: https://defold.com/manuals/script/
-	-- Remove this function if not needed
+	local pos = go.get_position()
+	go.set_position( vmath.lerp(self.smoothstep, pos, self.pos_target) )
+
+	local angle = vmath.lerp(self.smoothstep, self.angle, self.target_rot)
+	go.set_rotation( vmath.quat_rotation_y(angle))
 end
 
 function on_message(self, message_id, message, sender)
-	-- Add message-handling code here
-	-- Learn more: https://defold.com/manuals/message-passing/
-	-- Remove this function if not needed
-end
 
-function on_input(self, action_id, action)
-	-- Add input-handling code here. The game object this script is attached to
-	-- must have acquired input focus:
-	--
-	--    msg.post(".", "acquire_input_focus")
-	--
-	-- All mapped input bindings will be received. Mouse and touch input will
-	-- be received regardless of where on the screen it happened.
-	-- Learn more: https://defold.com/manuals/input/
-	-- Remove this function if not needed
+	if(message_id == hash("tank_move")) then 
+
+		self.target_pos = message.target_pos
+		self.target_rot = message.target_rot
+	end
+	if(message_id == hash("tank_kill")) then 
+
+		-- Would normally send a anim/sound msg here
+		go.delete() 
+	end
 end
 
 function on_reload(self)
-	-- Add reload-handling code here
-	-- Learn more: https://defold.com/manuals/hot-reload/
-	-- Remove this function if not needed
 end
