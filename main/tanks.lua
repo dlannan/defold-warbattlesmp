@@ -20,6 +20,8 @@
 
 ---------------------------------------------------------------------------------
 
+gGameTime     = 0.0
+
 OSVehicle   = require("lua.opensteer.os-simplevehicle")
 OSPathway   = require("lua.opensteer.os-pathway")
 Vec3        = require("lua.opensteer.os-vec")
@@ -28,7 +30,7 @@ Vec3        = require("lua.opensteer.os-vec")
 -- The tank and general game data for a module
 local gamedata = {
 
-    max_tanks       = 20,
+    max_tanks       = 10,
 
     -- List of paths used by tanks (common to all games)
     tank_paths      = {
@@ -131,46 +133,55 @@ end
 
 ---------------------------------------------------------------------------------
 
-local Tank = function( gameobj, tdata ) 
+local Tank = function( gameobj ) 
 
     local self = {}
     self.mover = OSVehicle()
 
     gameobj.tank_count = gameobj.tank_count + 1
     self.m_tanks    = gameobj.tanks        -- useful for collisions/avoidance
+    self.m_MyID     = gameobj.tank_count
 
     -- // reset state
     self.reset = function() 
         self.mover.reset() -- // reset the vehicle 
-        self.mover.setSpeed (0.0)         -- // speed along Forward direction.
+        self.mover.setSpeed (10.0)         -- // speed along Forward direction.
         self.mover.setMaxForce (20.7)      -- // steering force is clipped to this magnitude
         self.mover.setMaxSpeed (10)         -- // velocity is clipped to this magnitude
         self.mover.setRadius(1.25)
 
         -- // Place at start of a path 
         self.allpaths = gamedata.tank_paths
-        -- self.path = math.random(1, table.getn(self.allpaths))
-        self.path     = tdata.path
+        self.path = math.random(1, table.getn(self.allpaths))
         self.ospath = gamedata.tank_ospaths[self.path]
         self.pathlen = self.ospath.getTotalPathLength()
 
         -- Make the start point constant for a specific game module. All games will share this
-        self.dist_start = tdata.dist_start
+        if(self.dist_start == nil) then self.dist_start = math.random(self.pathlen) end
         self.dist = self.dist_start
 
         local pos = self.ospath.mapPathDistanceToPoint(self.dist)
-        self.mover.setPosition( Vec3Set(pos.x, 0, pos.y ) )
+        self.mover.setPosition( Vec3Set(pos.x, 0, pos.z ) )
+
+        local spos = vmath.vector3(pos.x, 752-pos.z, 0.5)
+        self.tobj = factory.create("/tanks#tankfactory", spos, nil, {})
+        msg.post(self.tobj, "tank_id", {id = self.m_MyID })
     end
 
     -- // per frame simulation update
     -- // (parameter names commented out to prevent compiler warning from "-W")
     self.update = function( elapsedTime) 
 
-        self.dist = self.dist_start + elapsedTime * self.mover.speed()
-        local pos = self.ospath.mapPathDistanceToPoint(self.dist)
+        if(self.tobj and go.get(self.tobj, "position")) then 
+      
+            self.dist = self.dist_start + elapsedTime * self.mover.speed()
+            local pos = self.ospath.mapPathDistanceToPoint(self.dist)
 
-        local seekTarget = self.mover.xxxsteerForSeek(pos)
-        self.mover.applySteeringForce (seekTarget.mult(2.0), elapsedTime)
+--         local seekTarget = self.mover.xxxsteerForSeek(pos)
+--         self.mover.applySteeringForce (seekTarget.mult(2.0), elapsedTime)
+-- 
+            self.mover.setPosition( Vec3Set(pos.x, 0, pos.z ) )
+        end
     end
 
     self.reset()
@@ -181,22 +192,21 @@ end
 -- Create some tanks that follow some paths.
 local function createTanks( gameobj )
     local tanks = {}
-
-    for i,v in ipairs( gameobj.tankdata ) do 
-        local tank = Tank(gameobj, i)
-        tank.m_MyID     = gameobj.tank_count
-        table.insert( tanks, tank )
+    gameobj.tank_count = 0
+    for i=1, gamedata.max_tanks do 
+        table.insert( tanks, Tank(gameobj) )
     end 
-    -- Make our own local tanks version
     gameobj.tanks = tanks
+    gamedata.tanks = tanks
 end
 
 ---------------------------------------------------------------------------------
--- Update the tanks
-local function updateTanks( gameobj, callback )
-    for k,tank in ipairs(gameobj.tanks) do 
-        tank.update(gameobj.time)
-        callback( gameobj, tank )
+-- Reset the tanks
+local function updateTank( tid )
+    local tank = gamedata.tanks[tid]
+    if(tank) then 
+        tank.update( gGameTime ) 
+        return tank
     end 
 end
 
@@ -207,12 +217,11 @@ local function resetTanks( gameobj )
         tank.reset()
     end 
 end
-
 ---------------------------------------------------------------------------------
 
 return {
     createTanks     = createTanks,
-    updateTanks     = updateTanks,
+    updateTank      = updateTank,
     resetTanks      = resetTanks,
 }
 

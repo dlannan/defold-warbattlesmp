@@ -1,9 +1,13 @@
+local tanks = require("main.tanks")
+
+go.property("tid", 0)
+
 function init(self)
 
 	local pos = go.get_position()
 	self.target_pos = vmath.vector3(pos)
 	self.angle 		= 0.0
-	self.target_rot = vmath.quat_rotation_y(self.angle)
+	self.target_rot = 0.0 -- vmath.quat_rotation_y(self.angle)
 	self.smoothstep = 0.08
 end
 
@@ -14,8 +18,15 @@ function final(self)
 end
 
 function update(self, dt)
+
+	local tdata = tanks.updateTank( self.tid )
+	if(tdata) then 
+		local tpos = tdata.mover.position()
+		self.target_pos =  vmath.vector3(tpos.x, 752-tpos.z, 0.5)
+	end 
+	
 	local pos = go.get_position()
-	go.set_position( vmath.lerp(self.smoothstep, pos, self.pos_target) )
+	go.set_position( vmath.lerp(self.smoothstep, pos, self.target_pos) )
 
 	local angle = vmath.lerp(self.smoothstep, self.angle, self.target_rot)
 	go.set_rotation( vmath.quat_rotation_y(angle))
@@ -23,6 +34,9 @@ end
 
 function on_message(self, message_id, message, sender)
 
+	if(message_id == hash("tank_id")) then 
+		self.tid = message.id
+	end 
 	if(message_id == hash("tank_move")) then 
 
 		self.target_pos = message.target_pos

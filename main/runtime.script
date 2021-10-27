@@ -38,18 +38,41 @@ local function logtext(self, str)
 	-- msg.post("/gui#log", "logtext", { text = str } )
 end 
 
+
+---------------------------------------------------------------------------------
+-- Gets a cleaned up gameobject (less data)
+local function getGameObject(gameobj)
+
+	local slimobj = {
+		name        = gameobj.name,
+		gamename    = gameobj.gamename, 
+		maxsize     = gameobj.maxsize,
+		people      = gameobj.people,
+		owner       = gameobj.owner, 
+		private     = gameobj.private, 
+		state       = gameobj.state,
+		frame       = gameobj.frame,
+		time        = gameobj.time,
+		ws_port     = gameobj.ws_port,
+	}
+	return slimobj
+end
+
 -- ---------------------------------------------------------------------------
 
 local function startgame(self, data)
 
+	self.slimobj = getGameObject(self.game)
+	tanks.createTanks(self.slimobj)
+
+	gGameTime = self.game.time
+	
 	-- Apply a fake name to start
 	logtext(self, data["status"])
 	msg.post("/gui-lobby", "gamestart")
 	--pprint(self.game)
 	msg.post("/gui-players", "gamestart", { people = self.game.people, myname = self.player_name })
 	msg.post("/gui-players", "gamename", { gamename = self.game.gamename })
-
-	tanks.createTanks(self.game)
 end
 
 -- ---------------------------------------------------------------------------
@@ -217,6 +240,12 @@ function update(self, dt)
 	-- 	end 
 	-- end
 	-- 
+
+	if(self.game) then 
+		gGameTime = gGameTime + dt
+	end
+		
+	-- TODO: Replace with websocket
 	if(self.frame % 10 == 0) then 
 		if(self.game) then 
 			swtest.reqround( self, function(data)

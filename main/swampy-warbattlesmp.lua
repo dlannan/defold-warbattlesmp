@@ -7,7 +7,8 @@ local json 		= require "swampy.utils.json"
 local bser 		= require "lua.binser"
 
 -- Some general settings. This is game specific.
-local MAX_CONNECT_ATTEMPTS		= 10
+local MAX_LOGIN_ATTEMPTS		= 10
+local MAX_CONNECT_ATTEMPTS 		= 10 
 
 -- ---------------------------------------------------------------------------
 -- Game level states.
@@ -130,7 +131,7 @@ local function setup_swampy(self, modulename, uid)
 	config.use_ssl 		= true 
 	config.api_token 	= "j3mHKlgGZ4" 
 
-	self.login_attemps 	= 0
+	self.login_attempts	= 0
 	self.gamestate 		= 0
 
 	self.user_id		= uid
@@ -166,8 +167,8 @@ local function device_login(self, callback)
 		end
 
 		print("Unable to login")
-		self.login_attemps = self.login_attemps + 1
-		if(self.login_attemps > 10) then 
+		self.login_attempts = self.login_attempts + 1
+		if(self.login_attempts > MAX_LOGIN_ATTEMPTS) then 
 
 			self.gamestate = GAME.LOGIN_FAIL
 		else 
