@@ -76,4 +76,9 @@ function on_message(self, message_id, message, sender)
 		msg.post("/gui-players", "enable")
 		msg.post("/gui-lobby", "disable")	
 	end 
+
+	if message_id == hash("connect_error") then 
+		local status = gui.get_node("status")  
+		gui.set_text(status, "Unable to connect to server")
+	end
 end 

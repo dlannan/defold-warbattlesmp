@@ -7,6 +7,8 @@ local utils  = require("lua.utils")
 local bser 	 = require("lua.binser")
 local rlua 	 = require("render.render")
 
+local tanks  = require("main.tanks")
+
 -- Dodgy fixed point to start with
 local START_POS 	= vmath.vector3(500, 500, 1)
 
@@ -46,6 +48,8 @@ local function startgame(self, data)
 	--pprint(self.game)
 	msg.post("/gui-players", "gamestart", { people = self.game.people, myname = self.player_name })
 	msg.post("/gui-players", "gamename", { gamename = self.game.gamename })
+
+	tanks.createTanks(self.game)
 end
 
 -- ---------------------------------------------------------------------------
@@ -74,6 +78,21 @@ local function websocket_callback(self, conn, data)
 		pprint("Receiving: '" .. tostring(data.message) .. "'")
 	end
 end
+
+-- ---------------------------------------------------------------------------
+
+local function connectgame(self, callback)
+	swtest.setup(self, "WarBattlesMP", "player1")
+	swtest.login(self, function(data) 
+		if(data == nil) then 
+			logtext(self, "Login FAILED.")
+			msg.post("/gui-lobby", "connect_error")
+		else 
+			logtext(self, "Login OK.")
+			callback()
+		end 
+	end)
+end 
 
 -- ---------------------------------------------------------------------------
 
@@ -166,11 +185,6 @@ function init(self)
 
 	msg.post(".", "acquire_input_focus")
 	chance:seed(os.time())
-
-	swtest.setup(self, "WarBattlesMP", "player1")
-	swtest.login(self, function(data) 
-		logtext(self, "Login OK.")
-	end)
 
 	msg.post ("@render:", "use_player_pos", { player_pos = vmath.vector3() })
 end
@@ -276,15 +290,20 @@ function on_message(self, message_id, message, sender)
 	if( message_id== hash("togglegui") ) then 
 		togglegui(self)
 	end
+
 	-- Joining can mean either joining a current game or creating and joining a new one
 	if( message_id== hash("joingame") ) then 
-		self.otherplayers 	= {}
-		self.gamename = message.gamename
-		msg.post("/gui#ui", "update_gamename", {name = self.gamename})
-		if(self.gamename and string.len(self.gamename)) then 
-			joingame(self)
-		end 
+
+		connectgame(self, function()
+			self.otherplayers 	= {}
+			self.gamename = message.gamename
+			msg.post("/gui#ui", "update_gamename", {name = self.gamename})
+			if(self.gamename and string.len(self.gamename)) then 
+				joingame(self)
+			end 
+		end)
 	end
+	
 	if( message_id== hash("setname") ) then 
 		if(message.name and string.len(message.name)) then 
 			setname(self, message.name, function(data) 

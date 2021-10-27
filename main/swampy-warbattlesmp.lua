@@ -136,8 +136,8 @@ local function setup_swampy(self, modulename, uid)
 	self.user_id		= uid
 	self.device_id		= genname(16)
 
-	self.swp_client = swampy.create_client(config)
-	--pprint(self.swp_client)
+	self.swp_client 	= swampy.create_client(config)
+	-- pprint(self.swp_client)
 end
 
 -- ---------------------------------------------------------------------------
@@ -158,10 +158,9 @@ local function device_login(self, callback)
 			-- store the token and use it when communicating with the server
 			self.swp_token = data.bearertoken
 			swampy.set_bearer_token(self.swp_client, self.swp_token)
-			pprint(self.swp_client)
 
 			print("Successful login")
-			if(callback) then callback() end
+			if(callback) then callback(true) end
 			self.gamestate = GAME.LOGIN_OK
 			return
 		end
@@ -175,6 +174,7 @@ local function device_login(self, callback)
 			resetclient(self)
 			self.gamestate = GAME.SETUP
 		end
+		if(callback) then callback() end
 	end)
 end
 
