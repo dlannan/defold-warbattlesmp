@@ -205,7 +205,7 @@ function init(self)
 	self.otherplayers 	= {}
 	self.frame 			= 0
 	self.sendbuffer 	= {}
-
+	
 	msg.post(".", "acquire_input_focus")
 	chance:seed(os.time())
 
@@ -242,7 +242,7 @@ function update(self, dt)
 	-- 
 
 	if(self.game) then 
-		gGameTime = gGameTime + dt
+		tanks.gamedata.time = tanks.gamedata.time + dt
 	end
 		
 	-- TODO: Replace with websocket

@@ -10,6 +10,8 @@ local bser 		= require "lua.binser"
 local MAX_LOGIN_ATTEMPTS		= 10
 local MAX_CONNECT_ATTEMPTS 		= 10 
 
+local HOST 						= "ancient-garden-51927.herokuapp.com"
+
 -- ---------------------------------------------------------------------------
 -- Game level states.
 --   These track where you are in the login and running process
@@ -72,7 +74,7 @@ end
 function websocket_open(self, callback)
 
 	callback = callback or websocket_callback
-	self.url = "ws://45.125.247.75:"..self.game.ws_port
+	self.url = "ws://"..HOST..":"..self.game.ws_port
 	local params = {
 		timeout = 3000,
 	}
@@ -126,9 +128,9 @@ local function setup_swampy(self, modulename, uid)
 	-- The Nakama server configuration
 	local config = {}
 
-	config.host 		= "45.125.247.75"
-	config.port 		= 5000
-	config.use_ssl 		= true 
+	config.host 		= HOST
+	config.port 		= 80
+	--config.use_ssl 		= true 
 	config.api_token 	= "j3mHKlgGZ4" 
 
 	self.login_attempts	= 0

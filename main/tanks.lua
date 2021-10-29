@@ -20,8 +20,6 @@
 
 ---------------------------------------------------------------------------------
 
-gGameTime     = 0.0
-
 OSVehicle   = require("lua.opensteer.os-simplevehicle")
 OSPathway   = require("lua.opensteer.os-pathway")
 Vec3        = require("lua.opensteer.os-vec")
@@ -110,6 +108,7 @@ local gamedata = {
         172.00,492.92,97.54,428.14,97.54,428.14 },
     },
     tank_ospaths = {},
+    time         = 0.0,         -- OOOH HACK
 }
 
 ---------------------------------------------------------------------------------
@@ -145,9 +144,9 @@ local Tank = function( gameobj )
     -- // reset state
     self.reset = function() 
         self.mover.reset() -- // reset the vehicle 
-        self.mover.setSpeed (10.0)         -- // speed along Forward direction.
+        self.mover.setSpeed (2.0)         -- // speed along Forward direction.
         self.mover.setMaxForce (20.7)      -- // steering force is clipped to this magnitude
-        self.mover.setMaxSpeed (10)         -- // velocity is clipped to this magnitude
+        self.mover.setMaxSpeed (2)         -- // velocity is clipped to this magnitude
         self.mover.setRadius(1.25)
 
         -- // Place at start of a path 
@@ -174,13 +173,13 @@ local Tank = function( gameobj )
 
         if(self.tobj and go.get(self.tobj, "position")) then 
       
-            self.dist = self.dist_start + elapsedTime * self.mover.speed()
+            self.dist = self.dist_start + elapsedTime * self.mover.speed() + 3.0
             local pos = self.ospath.mapPathDistanceToPoint(self.dist)
 
---         local seekTarget = self.mover.xxxsteerForSeek(pos)
---         self.mover.applySteeringForce (seekTarget.mult(2.0), elapsedTime)
--- 
-            self.mover.setPosition( Vec3Set(pos.x, 0, pos.z ) )
+         local seekTarget = self.mover.xxxsteerForSeek(pos)
+         self.mover.applySteeringForce (seekTarget.mult(2.0), elapsedTime)
+ 
+--            self.mover.setPosition( Vec3Set(pos.x, 0, pos.z ) )
         end
     end
 
@@ -205,7 +204,7 @@ end
 local function updateTank( tid )
     local tank = gamedata.tanks[tid]
     if(tank) then 
-        tank.update( gGameTime ) 
+        tank.update( gamedata.time ) 
         return tank
     end 
 end
@@ -223,6 +222,8 @@ return {
     createTanks     = createTanks,
     updateTank      = updateTank,
     resetTanks      = resetTanks,
+
+    gamedata         = gamedata,
 }
 
 ---------------------------------------------------------------------------------
