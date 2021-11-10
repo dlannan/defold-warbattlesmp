@@ -10,7 +10,7 @@ local bser 		= require "lua.binser"
 local MAX_LOGIN_ATTEMPTS		= 10
 local MAX_CONNECT_ATTEMPTS 		= 10 
 
-local HOST 						= "ancient-garden-51927.herokuapp.com"
+local HOST 						= "swampy.kakutai.com"
 
 -- ---------------------------------------------------------------------------
 -- Game level states.
@@ -78,10 +78,18 @@ function websocket_open(self, callback)
 	local params = {
 		timeout = 3000,
 	}
-	params.headers = "Sec-WebSocket-Protocol: chat\r\n"
-	params.headers = params.headers.."Origin: mydomain.com\r\n"
+	--params.headers = "Sec-WebSocket-Protocol: chat\r\n"
+	--params.headers = params.headers.."Origin: mydomain.com\r\n"
 
 	self.ws_connect = websocket.connect(self.url, params, callback)
+end
+
+---------------------------------------------------------------------------
+--  Send data to the server from client (usually movement and keypresses)
+function websocket_send(self, eventmsg, callback)
+
+	--local eventmsg = bser.serialize(eventtbl)
+	websocket.send(self.ws_connect, eventmsg)
 end
 
 -- ---------------------------------------------------------------------------
@@ -129,8 +137,8 @@ local function setup_swampy(self, modulename, uid)
 	local config = {}
 
 	config.host 		= HOST
-	config.port 		= 80
-	--config.use_ssl 		= true 
+	config.port 		= 5000
+	config.use_ssl 		= true 
 	config.api_token 	= "j3mHKlgGZ4" 
 
 	self.login_attempts	= 0
@@ -466,7 +474,8 @@ return {
 
 	websocket_open	= websocket_open,
 	websocket_close = websocket_close,
-	
+	websocket_send	= websocket_send,
+		
 	creategame 		= creategame,
 	findgame		= findgame,
 	joingame		= joingame,
@@ -486,6 +495,8 @@ return {
 	reqpeople 		= reqpeople,
 
 	waiting 		= waiting,
+
+	EVENT 			= USER_EVENT,
 }
 
 -- ---------------------------------------------------------------------------

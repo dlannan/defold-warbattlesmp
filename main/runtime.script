@@ -5,6 +5,7 @@ local chance = require("lua.chance")
 local utils  = require("lua.utils")
 
 local bser 	 = require("lua.binser")
+local sfolk  = require("lua.smallfolk")
 local rlua 	 = require("render.render")
 
 local tanks  = require("main.tanks")
@@ -54,6 +55,7 @@ local function getGameObject(gameobj)
 		frame       = gameobj.frame,
 		time        = gameobj.time,
 		ws_port     = gameobj.ws_port,
+		init 		= gameobj.init,
 	}
 	return slimobj
 end
@@ -90,15 +92,27 @@ end
 -- ---------------------------------------------------------------------------
 
 local function websocket_callback(self, conn, data)
+
+	pprint("[WS CALLBACK]", data.event)
 	if data.event == websocket.EVENT_DISCONNECTED then
 		pprint("Disconnected: " .. tostring(conn))
 		self.ws_connect = nil
+
 	elseif data.event == websocket.EVENT_CONNECTED then
 		pprint("Connected: " .. tostring(conn))
+		
 	elseif data.event == websocket.EVENT_ERROR then
 		pprint("Error: '" .. data.message .. "'")
+		
 	elseif data.event == websocket.EVENT_MESSAGE then
-		pprint("Receiving: '" .. tostring(data.message) .. "'")
+
+		if(data.message) then 
+			print("[DATALEN]", string.len(data.message))
+
+			local game = sfolk.loads(data.message)
+			self.game.state = game.state
+			updatestates(self) 
+		end 
 	end
 end
 
@@ -144,6 +158,7 @@ local function joingame(self)
 					swtest.joingame( self, self.gamename, function(data) 
 						if(data.status and data.status == "OK") then 
 							self.game = json.decode(data.result)
+							swtest.websocket_open(self, websocket_callback)
 						end
 						startgame(self, data)
 					end)
@@ -248,32 +263,39 @@ function update(self, dt)
 	-- TODO: Replace with websocket
 	if(self.frame % 10 == 0) then 
 		if(self.game) then 
-			swtest.reqround( self, function(data)
-				if(data.status == "OK") then 
---					print("[DATALEN]", string.len(data.result))
-					self.game.state = bser.deserialize(data.result)[1]
-					updatestates(self) 
-				end 
-			end)
+-- 			swtest.reqround( self, function(data)
+-- 				if(data.status == "OK") then 
+-- --					print("[DATALEN]", string.len(data.result))
+-- 					self.game.state = bser.deserialize(data.result)[1]
+-- 					updatestates(self) 
+-- 				end 
+-- 			end)
 		end
 	end
 
-	if(self.frame % 30 == 0) then 
-		
+	if(self.frame % 100 == 0) then 
 		if(self.game) then 
-			swtest.reqpeople( self, function(data)
-				if(data.status == "OK") then 
-					if(string.len(data.result) > 2) then 
-						self.game.people = bser.deserialize(data.result)[1]
-						local ocount = utils.tcount(self.otherplayers)
-						if(ocount + 1 ~= #self.game.people) then 
-							playerschanged(self)
-						end
-					end
-				end
-			end)
+			local evt = { event = "REQUEST_ROUND", frame = self.frame }
+			swtest.websocket_send(self, sfolk.dumps(evt))
 		end
 	end
+
+	-- if(self.frame % 30 == 0) then 
+	-- 	
+	-- 	if(self.game) then 
+	-- 		swtest.reqpeople( self, function(data)
+	-- 			if(data.status == "OK") then 
+	-- 				if(string.len(data.result) > 2) then 
+	-- 					self.game.people = bser.deserialize(data.result)[1]
+	-- 					local ocount = utils.tcount(self.otherplayers)
+	-- 					if(ocount + 1 ~= #self.game.people) then 
+	-- 						playerschanged(self)
+	-- 					end
+	-- 				end
+	-- 			end
+	-- 		end)
+	-- 	end
+	-- end
 	self.frame = self.frame + 1
 end
 
@@ -372,7 +394,7 @@ function on_message(self, message_id, message, sender)
 		msg.post ("@render:", "use_player_pos", { player_pos = target_player_pos })
 		state.uid 		= self.user_id
 		-- message.lt = 1, -- Can set lifetime of state
-		swtest.sendplayerdata( self, bser.serialize(state))
+		-- swtest.sendplayerdata( self, bser.serialize(state))
 		--table.insert(self.sendbuffer, bser.serialize(send_state))
 	end 
 end

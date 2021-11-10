@@ -132,34 +132,32 @@ end
 
 ---------------------------------------------------------------------------------
 
-local Tank = function( gameobj ) 
+local Tank = function( gameobj, gametime ) 
 
     local self = {}
     self.mover = OSVehicle()
-
-    gameobj.tank_count = gameobj.tank_count + 1
-    self.m_tanks    = gameobj.tanks        -- useful for collisions/avoidance
-    self.m_MyID     = gameobj.tank_count
+    self.m_MyID     = gameobj.id
 
     -- // reset state
     self.reset = function() 
         self.mover.reset() -- // reset the vehicle 
-        self.mover.setSpeed (2.0)         -- // speed along Forward direction.
+        self.mover.setSpeed (12.0)         -- // speed along Forward direction.
         self.mover.setMaxForce (20.7)      -- // steering force is clipped to this magnitude
-        self.mover.setMaxSpeed (2)         -- // velocity is clipped to this magnitude
+        self.mover.setMaxSpeed (20)         -- // velocity is clipped to this magnitude
         self.mover.setRadius(1.25)
 
         -- // Place at start of a path 
         self.allpaths = gamedata.tank_paths
-        self.path = math.random(1, table.getn(self.allpaths))
+        self.path = gameobj.path
         self.ospath = gamedata.tank_ospaths[self.path]
         self.pathlen = self.ospath.getTotalPathLength()
 
         -- Make the start point constant for a specific game module. All games will share this
-        if(self.dist_start == nil) then self.dist_start = math.random(self.pathlen) end
+        -- if(self.dist_start == nil) then self.dist_start = math.random(self.pathlen) end
+        self.dist_start = gameobj.start
         self.dist = self.dist_start
 
-        local pos = self.ospath.mapPathDistanceToPoint(self.dist)
+        local pos = self.ospath.mapPathDistanceToPoint(self.dist + gametime * 14.0)
         self.mover.setPosition( Vec3Set(pos.x, 0, pos.z ) )
 
         local spos = vmath.vector3(pos.x, 752-pos.z, 0.5)
@@ -169,17 +167,17 @@ local Tank = function( gameobj )
 
     -- // per frame simulation update
     -- // (parameter names commented out to prevent compiler warning from "-W")
-    self.update = function( elapsedTime) 
+    self.update = function( elapsedTime, delta) 
 
         if(self.tobj and go.get(self.tobj, "position")) then 
       
-            self.dist = self.dist_start + elapsedTime * self.mover.speed() + 3.0
-            local pos = self.ospath.mapPathDistanceToPoint(self.dist)
+            self.dist = self.dist_start + elapsedTime * 14.0 -- self.mover.speed()
+            local pos = self.ospath.mapPathDistanceToPoint(self.dist + 1.0)
 
-         local seekTarget = self.mover.xxxsteerForSeek(pos)
-         self.mover.applySteeringForce (seekTarget.mult(2.0), elapsedTime)
+            local seekTarget = self.mover.xxxsteerForSeek(pos)
+            self.mover.applySteeringForce(seekTarget, delta)
  
---            self.mover.setPosition( Vec3Set(pos.x, 0, pos.z ) )
+            --self.mover.setPosition( Vec3Set(pos.x, 0, pos.z ) )
         end
     end
 
@@ -191,20 +189,23 @@ end
 -- Create some tanks that follow some paths.
 local function createTanks( gameobj )
     local tanks = {}
-    gameobj.tank_count = 0
-    for i=1, gamedata.max_tanks do 
-        table.insert( tanks, Tank(gameobj) )
+    gameobj.tank_count = table.getn(gameobj.init)
+    pprint("Tanks: ", gameobj.tank_count, gameobj.time)
+    for i,t in ipairs(gameobj.init) do 
+        table.insert( tanks, Tank(t, gameobj.time) )
     end 
     gameobj.tanks = tanks
     gamedata.tanks = tanks
+    -- Need to sync this regularly
+    gamedata.time = gameobj.time
 end
 
 ---------------------------------------------------------------------------------
 -- Reset the tanks
-local function updateTank( tid )
+local function updateTank( tid, dt )
     local tank = gamedata.tanks[tid]
     if(tank) then 
-        tank.update( gamedata.time ) 
+        tank.update( gamedata.time, dt ) 
         return tank
     end 
 end

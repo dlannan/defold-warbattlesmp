@@ -104,7 +104,6 @@ end
 local function do_update(self, dt)
 
 	self.lastdt = dt
-	print(self.prediction)
 		
 	if(self.other) then 		
 		other_update(self, dt)
