@@ -18,10 +18,12 @@ fire_lookup[-11]	= 3.92699
 
 go.property("pcolor", vmath.vector4(1,1,1,1))
 
-local DIST_CHANGED 		= 5
-local MOVE_SMOOTH		= 4.0
+local DIST_CHANGED 		= 1
+-- This can be tweaked as needed. Probably should match network/cpu perf
+local MOVE_SMOOTH		= 6  
 
 -- Types of prediction available.
+-- TODO: Fix this, prediction broken - http was not a good test case
 local PREDICTION = {
 	NONE 	= "none",
 	CLIENT	= "client", 
@@ -71,15 +73,21 @@ local function other_update(self, dt)
 	local thismove = table.remove(self.updater, 1)
 	if(thismove) then 
 		local m = thismove.m
-		self.pos_target = vmath.vector3(m.x, m.y, 1)
-		tpos = thismove.pos
+		if(m.x and m.y) then 
+			self.pos_target = vmath.vector3(m.x, m.y, 1)
+			tpos = thismove.pos
 		
-		self.moving = m.m
-		self.firing = m.f
-		self.strdir = m.ix * 10 + m.iy
-		self.dir = vmath.vector3(m.dx, m.dy, 0)
-		self.move_t = m.t
-		self.speed = m.s
+			self.moving = m.m
+
+			self.strdir = m.ix * 10 + m.iy
+			self.dir = vmath.vector3(m.dx, m.dy, 0)
+			self.move_t = m.t
+			self.speed = m.s
+		elseif(m.f) then 
+			self.firing = m.f
+			self.strdir = m.sd
+			self.dir = vmath.vector3(m.dx, m.dy, 0)
+		end
 	end
 
 	-- prediction take in the frame id and estimates new targetpos
@@ -203,7 +211,7 @@ local function do_input(self, action_id, action)
 		local pos = go.get_position()
 		local inpchanged = (self.prev_input.x ~= self.input.x or self.prev_input.y ~= self.input.y)
 		if((inpchanged == false and vmath.length(pos-self.posL) > DIST_CHANGED) or 
-			(inpchanged) or	(self.firing)) then 
+			inpchanged ) then 
 			
 			msg.post("gui-runtime", "move_player", { state = {
 					x = pos.x,
@@ -214,12 +222,19 @@ local function do_input(self, action_id, action)
 					dx = self.dir.x, 
 					dy = self.dir.y,
 					s = self.speed,
-					f = self.firing,
-					t = socket.gettime(),
 				}
 			})
 			self.posL = pos
-		end
+		end 
+		if(self.firing) then 
+			msg.post("gui-runtime", "move_player", { state = {
+					f = self.firing,
+					sd = self.strdir,
+					dx = self.dir.x, 
+					dy = self.dir.y,
+				}
+			})
+		end			
 	end
 end 
 
@@ -255,7 +270,11 @@ function on_message(self, message_id, message, sender)
 	
 	if(self.other) then 
 		if message_id == hash("player_move") then 
-			self.pos = vmath.vector3(message.x, message.y, 1)
+			if(message.x and message.y) then
+				self.pos = vmath.vector3(message.x, message.y, 1)
+			else 
+				self.pos = nil 
+			end
 			table.insert(self.updater, { pos = self.pos, m = message })
 		end 
 	end

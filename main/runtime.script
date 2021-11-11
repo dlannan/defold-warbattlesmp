@@ -40,6 +40,18 @@ local function logtext(self, str)
 end 
 
 
+-- ---------------------------------------------------------------------------
+
+local function clipstate(state, size)
+
+	local out = {}
+	for i,d in ipairs(state) do 
+		if(i > size) then break end
+		tinsert(out, d)
+	end 
+	return out
+end
+
 ---------------------------------------------------------------------------------
 -- Gets a cleaned up gameobject (less data)
 local function getGameObject(gameobj)
@@ -90,10 +102,63 @@ local function setname(self, name, callback)
 end
 
 -- ---------------------------------------------------------------------------
+-- Players have either left or joined the game. 
+--   Find out who, and then add/remove other player objects
+--   Also determines if we have all the players that are in the game 
+--   during startup and adds them 
+local function playerschanged(self) 
+
+	-- print("PEOPLE:", utils.tcount(self.game.people))
+	for k,v in ipairs(self.game.people) do 
+		-- Missing player - add it! - disable input!!
+		-- dont add self 
+		if(self.player_uid ~= v.uid) then 
+			if(self.otherplayers[v.uid] == nil) then 
+
+				-- print("creating other player: ", v.uid, v.username)
+				local newplayer = factory.create("/players#playerfactory", START_POS, nil, {})
+				msg.post(newplayer, "player_details", { name = v.username, color = COLOR_WHITE, other=true})
+				self.otherplayers[v.uid] = newplayer
+			end 
+		end
+	end 
+end
+
+-- ---------------------------------------------------------------------------
+
+function updatestates(self)
+
+	if(self.game.state == nil) then return end 
+	local state_count = utils.tcount(self.game.state)
+	-- pprint("[STATE COUNT]", state_count)
+	local used = {}
+	
+	for i = state_count, 1, -1 do 
+		local v = table.remove(self.game.state, i)	
+		-- Ignore old states
+		if(v and v.uid) then 
+
+			if(used[v.uid] == nil or v.f) then 
+				local pid = self.otherplayers[v.uid]
+				if(pid) then
+					-- local pos = vmath.vector3(v.x, v.y, 1)
+					--go.animate(pid, "position", go.PLAYBACK_ONCE_FORWARD, pos, go.EASING_LINEAR, 0.2)
+					--go.set_position(pos, pid)
+					msg.post(pid, "player_move", v)
+				end 
+				used[v.uid] = true
+			end
+		end 
+	end
+	-- Consume whole state list
+	self.game.state = nil
+end 
+
+-- ---------------------------------------------------------------------------
 
 local function websocket_callback(self, conn, data)
 
-	pprint("[WS CALLBACK]", data.event)
+	--pprint("[WS CALLBACK]", data.event)
 	if data.event == websocket.EVENT_DISCONNECTED then
 		pprint("Disconnected: " .. tostring(conn))
 		self.ws_connect = nil
@@ -106,12 +171,29 @@ local function websocket_callback(self, conn, data)
 		
 	elseif data.event == websocket.EVENT_MESSAGE then
 
-		if(data.message) then 
-			print("[DATALEN]", string.len(data.message))
+		-- Ignore any bs msg data
+		if(data.message and #data.message > 10) then 
 
-			local game = sfolk.loads(data.message)
-			self.game.state = game.state
-			updatestates(self) 
+			local msg = sfolk.loads(data.message)
+			if(msg and msg.event) then 
+				-- print(msg.event)
+
+				if(msg.event == "REQUEST_ROUND") then 
+					self.game.state = msg.data
+					updatestates(self)
+				
+				elseif(msg.event == "REQUEST_GAME") then 
+					self.game = msg.data
+
+				elseif(msg.event == "REQUEST_PEOPLE") then 
+
+					self.game.people = msg.data
+					local ocount = utils.tcount(self.otherplayers)
+					if(ocount + 1 ~= #self.game.people) then 
+						playerschanged(self)
+					end
+				end
+			end 
 		end 
 	end
 end
@@ -169,51 +251,6 @@ local function joingame(self)
 end 
 
 -- ---------------------------------------------------------------------------
--- Players have either left or joined the game. 
---   Find out who, and then add/remove other player objects
---   Also determines if we have all the players that are in the game 
---   during startup and adds them 
-local function playerschanged(self) 
-
-	-- print("PEOPLE:", utils.tcount(self.game.people))
-	for k,v in ipairs(self.game.people) do 
-		-- Missing player - add it! - disable input!!
-		-- dont add self 
-		if(self.player_uid ~= v.uid) then 
-			if(self.otherplayers[v.uid] == nil) then 
-
-				-- print("creating other player: ", v.uid, v.username)
-				local newplayer = factory.create("/players#playerfactory", START_POS, nil, {})
-				msg.post(newplayer, "player_details", { name = v.username, color = COLOR_WHITE, other=true})
-				self.otherplayers[v.uid] = newplayer
-			end 
-		end
-	end 
-end
--- ---------------------------------------------------------------------------
-
-function updatestates(self)
-
-	if(self.game.state == nil) then return end 
-	local state_count = utils.tcount(self.game.state)
-	-- pprint("[STATE COUNT]", state_count)
-	for i = 1, state_count do 
-		local v = table.remove(self.game.state, 1)
-		if(v and v.uid) then 
-			local pid = self.otherplayers[v.uid]
-			if(pid) then
-				-- local pos = vmath.vector3(v.x, v.y, 1)
-				--go.animate(pid, "position", go.PLAYBACK_ONCE_FORWARD, pos, go.EASING_LINEAR, 0.2)
-				--go.set_position(pos, pid)
-				msg.post(pid, "player_move", v)
-			end 
-		end 
-	end
-	-- Consume whole state list
-	self.game.state = nil
-end 
-
--- ---------------------------------------------------------------------------
 
 function init(self)
 	self.gamerunning 	= false
@@ -248,54 +285,33 @@ function update(self, dt)
 		end 
 	end
 
-	-- if(self.frame % 10 == 0) then 
-	-- 	if(self.game) then 
-	-- 		local data = table.remove( self.sendbuffer, 1 )
-	-- 		swtest.sendplayerdata( self, data)
-	-- 	end 
-	-- end
-	-- 
-
 	if(self.game) then 
-		tanks.gamedata.time = tanks.gamedata.time + dt
-	end
-		
-	-- TODO: Replace with websocket
-	if(self.frame % 10 == 0) then 
-		if(self.game) then 
--- 			swtest.reqround( self, function(data)
--- 				if(data.status == "OK") then 
--- --					print("[DATALEN]", string.len(data.result))
--- 					self.game.state = bser.deserialize(data.result)[1]
--- 					updatestates(self) 
--- 				end 
--- 			end)
-		end
+		tanks.gamedata.time = self.game.time + dt
 	end
 
-	if(self.frame % 100 == 0) then 
+	if(self.frame % 130 == 0) then 
 		if(self.game) then 
-			local evt = { event = "REQUEST_ROUND", frame = self.frame }
+			local evt = { event = "REQUEST_PEOPLE", frame = self.game.frame }
 			swtest.websocket_send(self, sfolk.dumps(evt))
 		end
 	end
 
-	-- if(self.frame % 30 == 0) then 
-	-- 	
-	-- 	if(self.game) then 
-	-- 		swtest.reqpeople( self, function(data)
-	-- 			if(data.status == "OK") then 
-	-- 				if(string.len(data.result) > 2) then 
-	-- 					self.game.people = bser.deserialize(data.result)[1]
-	-- 					local ocount = utils.tcount(self.otherplayers)
-	-- 					if(ocount + 1 ~= #self.game.people) then 
-	-- 						playerschanged(self)
-	-- 					end
-	-- 				end
-	-- 			end
-	-- 		end)
-	-- 	end
-	-- end
+	-- Odd timing to make the stepping cycle
+	if(self.frame % 97 == 0) then 
+		if(self.game) then 
+			local evt = { event = "REQUEST_GAME", frame = self.game.frame }
+			swtest.websocket_send(self, sfolk.dumps(evt))
+		end
+	end
+	
+	if(self.frame % 10 == 0) then 
+		if(self.game) then 
+
+			local evt = { event = "REQUEST_ROUND", frame = self.game.frame }
+			swtest.websocket_send(self, sfolk.dumps(evt))
+		end
+	end
+
 	self.frame = self.frame + 1
 end
 
@@ -389,13 +405,15 @@ function on_message(self, message_id, message, sender)
 	if(message_id == hash("move_player") ) then 
 
 		local state 	= message.state 
-		local w,h 		= rlua.get_win()
-		target_player_pos = vmath.vector3(-state.x + w * 0.5, -state.y + h * 0.5, 0)
-		msg.post ("@render:", "use_player_pos", { player_pos = target_player_pos })
+		if(state.x and state.y) then 
+			local w,h 		= rlua.get_win()
+			target_player_pos = vmath.vector3(-state.x + w * 0.5, -state.y + h * 0.5, 0)
+			msg.post ("@render:", "use_player_pos", { player_pos = target_player_pos })
+		end
 		state.uid 		= self.user_id
-		-- message.lt = 1, -- Can set lifetime of state
-		-- swtest.sendplayerdata( self, bser.serialize(state))
-		--table.insert(self.sendbuffer, bser.serialize(send_state))
+	
+		local evt = { event = "PLAYER_DATA", frame = self.frame, data = state }
+		swtest.websocket_send(self, sfolk.dumps(evt))
 	end 
 end
 

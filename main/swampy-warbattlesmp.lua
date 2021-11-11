@@ -88,6 +88,7 @@ end
 --  Send data to the server from client (usually movement and keypresses)
 function websocket_send(self, eventmsg, callback)
 
+	if(self.ws_connect == nil) then return nil end 
 	--local eventmsg = bser.serialize(eventtbl)
 	websocket.send(self.ws_connect, eventmsg)
 end
