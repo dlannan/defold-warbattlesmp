@@ -119,17 +119,16 @@ local function do_update(self, dt)
 		-- stopped moving.
 		if(self.moving == false and 
 			(self.input.x ~= self.prev_input.x or self.input.y ~= self.prev_input.y)) then 
-			local pos = go.get_position()
-			msg.post("gui-runtime", "move_player", { state = {
-					x = pos.x,
-					y = pos.y, 
+			local pos = go.get_position()			
+			msg.post("gui-runtime", "player_move", { state = {
+					x = math.floor(pos.x),
+					y = math.floor(pos.y), 
 					ix = 0,
 					iy = 0,
 					m = false,
 					dx = self.dir.x, 
 					dy = self.dir.y,
 					s = self.speed,
-					f = self.firing,
 					t = socket.gettime(),
 				}
 			})
@@ -212,10 +211,10 @@ local function do_input(self, action_id, action)
 		local inpchanged = (self.prev_input.x ~= self.input.x or self.prev_input.y ~= self.input.y)
 		if((inpchanged == false and vmath.length(pos-self.posL) > DIST_CHANGED) or 
 			inpchanged ) then 
-			
-			msg.post("gui-runtime", "move_player", { state = {
-					x = pos.x,
-					y = pos.y, 
+				
+			msg.post("gui-runtime", "player_move", { state = {
+					x = math.floor(pos.x),
+					y = math.floor(pos.y), 
 					ix = self.input.x,
 					iy = self.input.y,
 					m = self.moving,
@@ -226,8 +225,11 @@ local function do_input(self, action_id, action)
 			})
 			self.posL = pos
 		end 
-		if(self.firing) then 
-			msg.post("gui-runtime", "move_player", { state = {
+		if(self.firing) then
+
+			print("HERE2")
+			 
+			msg.post("gui-runtime", "player_shoot", { state = {
 					f = self.firing,
 					sd = self.strdir,
 					dx = self.dir.x, 

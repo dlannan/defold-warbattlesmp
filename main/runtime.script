@@ -133,12 +133,12 @@ function updatestates(self)
 	-- pprint("[STATE COUNT]", state_count)
 	local used = {}
 	
-	for i = state_count, 1, -1 do 
-		local v = table.remove(self.game.state, i)	
+	for i = 1, state_count do 
+		local v = table.remove(self.game.state, 1)	
 		-- Ignore old states
 		if(v and v.uid) then 
 
-			if(used[v.uid] == nil or v.f) then 
+--			if(used[v.uid] == nil or v.f) then 
 				local pid = self.otherplayers[v.uid]
 				if(pid) then
 					-- local pos = vmath.vector3(v.x, v.y, 1)
@@ -147,7 +147,7 @@ function updatestates(self)
 					msg.post(pid, "player_move", v)
 				end 
 				used[v.uid] = true
-			end
+--			end
 		end 
 	end
 	-- Consume whole state list
@@ -173,7 +173,7 @@ local function websocket_callback(self, conn, data)
 
 		-- Ignore any bs msg data
 		if(data.message and #data.message > 10) then 
-
+			
 			local msg = sfolk.loads(data.message)
 			if(msg and msg.event) then 
 				-- print(msg.event)
@@ -289,13 +289,13 @@ function update(self, dt)
 		tanks.gamedata.time = self.game.time + dt
 	end
 
-	if(self.frame % 130 == 0) then 
-		if(self.game) then 
-			local evt = { event = "REQUEST_PEOPLE", frame = self.game.frame }
-			swtest.websocket_send(self, sfolk.dumps(evt))
-		end
-	end
-
+-- 	if(self.frame % 130 == 0) then 
+-- 		if(self.game) then 
+-- 			local evt = { event = "REQUEST_PEOPLE", frame = self.game.frame }
+-- 			swtest.websocket_send(self, sfolk.dumps(evt))
+-- 		end
+-- 	end
+-- 
 	-- Odd timing to make the stepping cycle
 	if(self.frame % 97 == 0) then 
 		if(self.game) then 
@@ -304,14 +304,14 @@ function update(self, dt)
 		end
 	end
 	
-	if(self.frame % 10 == 0) then 
-		if(self.game) then 
-
-			local evt = { event = "REQUEST_ROUND", frame = self.game.frame }
-			swtest.websocket_send(self, sfolk.dumps(evt))
-		end
-	end
-
+-- 	if(self.frame % 10 == 0) then 
+-- 		if(self.game) then 
+-- 
+-- 			local evt = { event = "REQUEST_ROUND", frame = self.game.frame }
+-- 			swtest.websocket_send(self, sfolk.dumps(evt))
+-- 		end
+-- 	end
+-- 
 	self.frame = self.frame + 1
 end
 
@@ -402,7 +402,7 @@ function on_message(self, message_id, message, sender)
 	-- Send server player move
 	--    Server collects these, then sends out to other players in state 
 	--    output. 
-	if(message_id == hash("move_player") ) then 
+	if(message_id == hash("player_move") ) then 
 
 		local state 	= message.state 
 		if(state.x and state.y) then 
@@ -411,10 +411,25 @@ function on_message(self, message_id, message, sender)
 			msg.post ("@render:", "use_player_pos", { player_pos = target_player_pos })
 		end
 		state.uid 		= self.user_id
-	
+		--state.lt 		= self.game.frame + 2
+			
 		local evt = { event = "PLAYER_DATA", frame = self.frame, data = state }
+		local dsend = sfolk.dumps(evt)
+		swtest.websocket_send(self, sfolk.dumps(evt))
+	end
+
+	if(message_id == hash("player_shoot") ) then 
+
+		local state 	= message.state 
+		state.uid 		= self.user_id
+		--state.lt 		= self.game.frame + 2
+
+		local evt = { event = "PLAYER_DATA", frame = self.frame, data = state }
+		local dsend = sfolk.dumps(evt)
+		if(#dsend > 100) then pprint(evt) end
 		swtest.websocket_send(self, sfolk.dumps(evt))
 	end 
+	 
 end
 
 -- ---------------------------------------------------------------------------
