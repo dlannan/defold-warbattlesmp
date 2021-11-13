@@ -94,13 +94,22 @@ function on_message(self, message_id, message, sender)
 			for k,v in ipairs(message.people) do 
 				self.list_data[k] = v.username
 			end 
-			print("SETTING GAME")
 			gooey.dynamic_list("dynamiclist", "dynamiclist_bounds", "listitem", 
 				self.list_data, nil, nil, nil, nil, update_list)
 		end
 		if(message.myname) then 
 			self.myname = message.myname
 			gooey.input("input_myname", gui.KEYBOARD_TYPE_DEFAULT, nil, nil, { empty_text = self.myname })
+		end
+	end
+	if(message_id == hash("gameplayers")) then 
+		if(message.people) then 
+			self.list_data = {}
+			for k,v in ipairs(message.people) do 
+				self.list_data[k] = v.username
+			end 
+			gooey.dynamic_list("dynamiclist", "dynamiclist_bounds", "listitem", 
+			self.list_data, nil, nil, nil, nil, update_list)
 		end
 	end
 	if(message_id == hash("gamename")) then 

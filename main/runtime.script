@@ -80,7 +80,7 @@ local function startgame(self, data)
 	tanks.createTanks(self.slimobj)
 
 	gGameTime = self.game.time
-	
+
 	-- Apply a fake name to start
 	logtext(self, data["status"])
 	msg.post("/gui-lobby", "gamestart")
@@ -108,7 +108,7 @@ end
 --   during startup and adds them 
 local function playerschanged(self) 
 
-	-- print("PEOPLE:", utils.tcount(self.game.people))
+	print("PEOPLE:", utils.tcount(self.game.people))
 	for k,v in ipairs(self.game.people) do 
 		-- Missing player - add it! - disable input!!
 		-- dont add self 
@@ -122,6 +122,8 @@ local function playerschanged(self)
 			end 
 		end
 	end 
+
+	msg.post("/gui-players", "gameplayers", { people = self.game.people, myname = self.player_name })
 end
 
 -- ---------------------------------------------------------------------------
@@ -144,7 +146,11 @@ function updatestates(self)
 					-- local pos = vmath.vector3(v.x, v.y, 1)
 					--go.animate(pid, "position", go.PLAYBACK_ONCE_FORWARD, pos, go.EASING_LINEAR, 0.2)
 					--go.set_position(pos, pid)
-					msg.post(pid, "player_move", v)
+					if(v.f) then 
+						msg.post(pid, "player_shoot", v)
+					else
+						msg.post(pid, "player_move", v)
+					end
 				end 
 				used[v.uid] = true
 --			end
@@ -166,6 +172,9 @@ local function websocket_callback(self, conn, data)
 	elseif data.event == websocket.EVENT_CONNECTED then
 		pprint("Connected: " .. tostring(conn))
 		
+		local evt = { event = "REQUEST_PEOPLE", frame = self.game.frame }
+		swtest.websocket_send(self, sfolk.dumps(evt))
+		
 	elseif data.event == websocket.EVENT_ERROR then
 		pprint("Error: '" .. data.message .. "'")
 		
@@ -176,6 +185,11 @@ local function websocket_callback(self, conn, data)
 			
 			local msg = sfolk.loads(data.message)
 			if(msg and msg.event) then 
+
+				if(self.game) then 
+					self.game.frame = msg.frame 
+					self.game.time = msg.time
+				end
 				-- print(msg.event)
 
 				if(msg.event == "REQUEST_ROUND") then 
@@ -188,10 +202,7 @@ local function websocket_callback(self, conn, data)
 				elseif(msg.event == "REQUEST_PEOPLE") then 
 
 					self.game.people = msg.data
-					local ocount = utils.tcount(self.otherplayers)
-					if(ocount + 1 ~= #self.game.people) then 
-						playerschanged(self)
-					end
+					playerschanged(self)
 				end
 			end 
 		end 
@@ -286,7 +297,7 @@ function update(self, dt)
 	end
 
 	if(self.game) then 
-		tanks.gamedata.time = self.game.time + dt
+		tanks.gamedata.time = self.game.time
 	end
 
 -- 	if(self.frame % 130 == 0) then 
@@ -404,6 +415,8 @@ function on_message(self, message_id, message, sender)
 	--    output. 
 	if(message_id == hash("player_move") ) then 
 
+		-- Only allow single messgae in a frame
+		if(self.last_player_move and self.last_player_move+2 >= self.frame) then return end
 		local state 	= message.state 
 		if(state.x and state.y) then 
 			local w,h 		= rlua.get_win()
@@ -412,24 +425,26 @@ function on_message(self, message_id, message, sender)
 		end
 		state.uid 		= self.user_id
 		--state.lt 		= self.game.frame + 2
-			
-		local evt = { event = "PLAYER_DATA", frame = self.frame, data = state }
-		local dsend = sfolk.dumps(evt)
-		swtest.websocket_send(self, sfolk.dumps(evt))
-	end
 
+		self.last_player_move = self.frame
+		local evt = { event = "PLAYER_MOVE", frame = self.frame, data = state }
+		local dsend = sfolk.dumps(evt)
+		swtest.websocket_send(self, dsend)
+	end 
+	
 	if(message_id == hash("player_shoot") ) then 
 
+		-- Only allow single messgae in a frame
+		if(self.last_player_shoot and self.last_player_shoot+2 >= self.frame) then return end
 		local state 	= message.state 
 		state.uid 		= self.user_id
 		--state.lt 		= self.game.frame + 2
-
-		local evt = { event = "PLAYER_DATA", frame = self.frame, data = state }
+		
+		self.last_player_shoot = self.frame
+		local evt = { event = "PLAYER_SHOOT", frame = self.frame, data = state }
 		local dsend = sfolk.dumps(evt)
-		if(#dsend > 100) then pprint(evt) end
-		swtest.websocket_send(self, sfolk.dumps(evt))
+		swtest.websocket_send(self, dsend)
 	end 
-	 
 end
 
 -- ---------------------------------------------------------------------------

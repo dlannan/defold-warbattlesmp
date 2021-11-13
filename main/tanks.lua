@@ -190,7 +190,7 @@ end
 local function createTanks( gameobj )
     local tanks = {}
     gameobj.tank_count = table.getn(gameobj.init)
-    pprint("Tanks: ", gameobj.tank_count, gameobj.time)
+    -- pprint("Tanks: ", gameobj.tank_count, gameobj.time)
     for i,t in ipairs(gameobj.init) do 
         table.insert( tanks, Tank(t, gameobj.time) )
     end 
