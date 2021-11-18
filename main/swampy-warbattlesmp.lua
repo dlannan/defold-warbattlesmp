@@ -138,7 +138,7 @@ local function setup_swampy(self, modulename, uid)
 	local config = {}
 
 	config.host 		= HOST
-	config.port 		= 5000
+	config.port 		= 443
 	config.use_ssl 		= true 
 	config.api_token 	= "j3mHKlgGZ4" 
 
