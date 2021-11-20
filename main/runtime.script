@@ -179,14 +179,17 @@ local function websocket_callback(self, conn, data)
 		pprint("Error: '" .. data.message .. "'")
 		
 	elseif data.event == websocket.EVENT_MESSAGE then
-print(data.message)
+
 		-- Ignore any bs msg data
 		if(data.message and #data.message > 10) then 
 			
 			local msg = sfolk.loads(data.message)
 			if(msg and msg.event) then 
 
-				if(self.game) then 
+				if(msg.event == "REQUEST_GAME") then 
+					self.game = msg.data
+
+				elseif(self.game) then 
 					self.game.frame = msg.frame 
 					self.game.time = msg.time  * 0.001
 				end
@@ -196,9 +199,6 @@ print(data.message)
 					self.game.state = msg.data
 					updatestates(self)
 				
-				elseif(msg.event == "REQUEST_GAME") then 
-					self.game = msg.data
-
 				elseif(msg.event == "REQUEST_PEOPLE") then 
 
 					self.game.people = msg.data
