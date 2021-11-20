@@ -179,7 +179,7 @@ local function websocket_callback(self, conn, data)
 		pprint("Error: '" .. data.message .. "'")
 		
 	elseif data.event == websocket.EVENT_MESSAGE then
-
+print(data.message)
 		-- Ignore any bs msg data
 		if(data.message and #data.message > 10) then 
 			
@@ -188,7 +188,7 @@ local function websocket_callback(self, conn, data)
 
 				if(self.game) then 
 					self.game.frame = msg.frame 
-					self.game.time = msg.time
+					self.game.time = msg.time  * 0.001
 				end
 				-- print(msg.event)
 
