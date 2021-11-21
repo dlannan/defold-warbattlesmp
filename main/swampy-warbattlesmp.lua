@@ -74,7 +74,7 @@ end
 function websocket_open(self, callback)
 
 	callback = callback or websocket_callback
-	self.url = "ws://"..HOST..":"..self.game.ws_port
+	self.url = "wss://"..HOST..":"..self.game.ws_port
 	local params = {
 		timeout = 3000,
 	}
